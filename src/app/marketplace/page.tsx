@@ -315,19 +315,11 @@ export default async function MarketplacePage({
       category,
       subcategory,
       listing_details,
-      seller_contact_name,
-      seller_contact_phone,
-      seller_contact_whatsapp,
-      seller_contact_email,
-      preferred_contact_method,
       status,
-      views_count,
-      contact_clicks_count,
       saved_count,
       animals(animal_code, tag_number, breed, gender, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
       marketplace_listing_media(storage_path, media_type, is_primary, created_at),
-      farms:seller_farm_id(id, name, seller_verification_status),
-      marketplace_offers(id, buyer_id, amount, status, message, created_at)
+      farms:seller_farm_id(id, name, seller_verification_status)
     `)
     .eq("status", "active");
 
@@ -354,10 +346,7 @@ export default async function MarketplacePage({
 
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
-    .limit(hasSearch ? 200 : 48);
-  for (const listing of rawListings ?? []) {
-    await supabase.rpc("increment_listing_metric", { listing_id: listing.id, metric: "view" });
-  }
+    .limit(hasSearch ? 120 : 24);
   const searchFilteredListings = q.trim()
     ? (rawListings ?? []).filter((listing) => searchMatchesListing(listing, q))
     : rawListings;
@@ -376,34 +365,14 @@ export default async function MarketplacePage({
   const savedListingIds = new Set((savedListings ?? []).map((item) => item.listing_id));
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
-    .select(`
-      title,
-      description,
-      category,
-      subcategory,
-      province,
-      town,
-      approximate_location,
-      listing_details,
-      animals(breed, gender, species(name))
-    `)
+    .select("category, subcategory")
     .eq("status", "active")
-    .limit(2000);
+    .limit(1000);
   const listingCounts = new Map<string, number>();
   for (const row of listingCountRows ?? []) {
     listingCounts.set(listingCountKey(row.category), (listingCounts.get(listingCountKey(row.category)) ?? 0) + 1);
     if (row.subcategory) {
       listingCounts.set(listingCountKey(row.category, row.subcategory), (listingCounts.get(listingCountKey(row.category, row.subcategory)) ?? 0) + 1);
-    } else {
-      const categoryItem = marketplaceCategoryTree.find((item) => item.slug === row.category);
-      for (const subcategoryItem of categoryItem?.subcategories ?? []) {
-        if (searchMatchesListing(row, subcategoryItem.label)) {
-          listingCounts.set(
-            listingCountKey(row.category, subcategoryItem.slug),
-            (listingCounts.get(listingCountKey(row.category, subcategoryItem.slug)) ?? 0) + 1
-          );
-        }
-      }
     }
   }
   const moreCategoryGroups = marketplaceCategoryTree.map((categoryItem) => ({
