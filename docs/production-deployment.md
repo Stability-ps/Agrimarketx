@@ -14,7 +14,7 @@ Set these in Vercel Project Settings > Environment Variables for Production:
 ```text
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_SITE_URL=https://your-production-domain
+NEXT_PUBLIC_SITE_URL=https://agrimarketx.co.za
 SUPABASE_SERVICE_ROLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
@@ -27,12 +27,12 @@ Stripe values can stay empty only while subscription checkout is not used in pro
 
 In Supabase Auth URL Configuration:
 
-- Site URL: `https://your-production-domain`
+- Site URL: `https://agrimarketx.co.za`
 - Redirect URLs:
-  - `https://your-production-domain/auth/callback`
-  - `https://your-production-domain/login`
-  - `https://your-production-domain/signup`
-  - `https://your-production-domain/onboarding`
+  - `https://agrimarketx.co.za/auth/callback`
+  - `https://agrimarketx.co.za/login`
+  - `https://agrimarketx.co.za/signup`
+  - `https://agrimarketx.co.za/onboarding`
   - `http://localhost:3000/auth/callback`
   - `http://127.0.0.1:3000/auth/callback`
 
