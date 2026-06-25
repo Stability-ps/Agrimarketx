@@ -3,6 +3,10 @@ export function cleanFileName(name: string) {
 }
 
 export function publicStorageUrl(bucket: string, path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return `${baseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }
