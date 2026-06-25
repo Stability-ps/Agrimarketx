@@ -29,9 +29,6 @@ declare
   demo_company uuid := '10000000-0000-4000-8000-000000000001';
   demo_admin uuid;
   rec record;
-  listing_id uuid;
-  farm_id uuid;
-  animal_id uuid;
 begin
   select id into demo_owner
   from public.profiles
@@ -55,18 +52,23 @@ begin
   delete from public.marketplace_listing_media where storage_path like 'https://images.unsplash.com/%';
   delete from public.buyer_request_media where storage_path like 'https://images.unsplash.com/%';
   delete from public.conversation_messages where body like '[DEMO]%';
-  delete from public.conversation_participants where conversation_id in (select id from public.conversations where subject like '[DEMO]%');
+  delete from public.conversation_participants cp
+  where cp.conversation_id in (select c.id from public.conversations c where c.subject like '[DEMO]%');
   delete from public.conversations where subject like '[DEMO]%';
   delete from public.app_notifications where title like '[DEMO]%';
   delete from public.support_tickets where subject like '[DEMO]%';
   delete from public.disputes where summary like '[DEMO]%';
   delete from public.marketplace_enquiries where message like '[DEMO]%';
   delete from public.marketplace_offers where message like '[DEMO]%';
-  delete from public.marketplace_saved_listings where listing_id in (select id from public.marketplace_listings where title like '[DEMO]%');
-  delete from public.buyer_request_responses where request_id in (select id from public.buyer_requests where title like '[DEMO]%');
+  delete from public.marketplace_saved_listings msl
+  where msl.listing_id in (select ml.id from public.marketplace_listings ml where ml.title like '[DEMO]%');
+  delete from public.buyer_request_responses brr
+  where brr.request_id in (select br.id from public.buyer_requests br where br.title like '[DEMO]%');
   delete from public.buyer_requests where title like '[DEMO]%';
-  delete from public.ownership_history where animal_id in (select id from public.animals where animal_code like 'DEMO-%');
-  delete from public.ownership_transfers where animal_id in (select id from public.animals where animal_code like 'DEMO-%');
+  delete from public.ownership_history oh
+  where oh.animal_id in (select a.id from public.animals a where a.animal_code like 'DEMO-%');
+  delete from public.ownership_transfers ot
+  where ot.animal_id in (select a.id from public.animals a where a.animal_code like 'DEMO-%');
   delete from public.marketplace_listings where title like '[DEMO]%';
   delete from public.finance_transactions where description like '[DEMO]%';
   delete from public.product_inventory where batch_number like '%DEMO%';
@@ -79,9 +81,12 @@ begin
   delete from public.animals where animal_code like 'DEMO-%';
   delete from public.herds where name like '[DEMO]%';
   delete from public.camps where name like '[DEMO]%';
-  delete from public.farm_followers where farm_id in (select id from public.farms where name like '[DEMO]%');
-  delete from public.farm_species where farm_id in (select id from public.farms where name like '[DEMO]%');
-  delete from public.farm_members where farm_id in (select id from public.farms where name like '[DEMO]%');
+  delete from public.farm_followers ff
+  where ff.farm_id in (select f.id from public.farms f where f.name like '[DEMO]%');
+  delete from public.farm_species fs
+  where fs.farm_id in (select f.id from public.farms f where f.name like '[DEMO]%');
+  delete from public.farm_members fm
+  where fm.farm_id in (select f.id from public.farms f where f.name like '[DEMO]%');
   delete from public.farms where name like '[DEMO]%';
   delete from public.subscriptions where company_id = demo_company;
   delete from public.companies where id = demo_company;
