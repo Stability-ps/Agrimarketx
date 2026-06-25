@@ -14,9 +14,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/marketplace",
     "/about",
     "/features",
+    "/how-it-works",
     "/pricing",
     "/contact",
-    "/faq"
+    "/faq",
+    "/help-centre",
+    "/safety-advice",
+    "/marketplace-rules",
+    "/legal"
   ].map((path) => ({
     url: `${baseUrl}${path}`,
     lastModified: new Date(),

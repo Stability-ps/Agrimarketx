@@ -33,7 +33,7 @@ import {
   marketplaceSubcategories,
   normalizeMarketplaceCategory
 } from "@/lib/marketplace-categories";
-import { provinceDirectory, provincePreview } from "@/lib/provinces";
+import { findLocationInSearch, provinceDirectory, provincePreview, stripLocationFromSearch } from "@/lib/provinces";
 import { createPublicSupabaseClient } from "@/lib/supabase/public-server";
 
 export const revalidate = 60;
@@ -99,7 +99,12 @@ function listingSearchText(listing: any) {
 }
 
 function searchMatchesListing(listing: any, query: string) {
-  const terms = expandMarketplaceSearchTerms(query)
+  const cleanQuery = query.trim();
+  if (!cleanQuery) {
+    return true;
+  }
+
+  const terms = expandMarketplaceSearchTerms(cleanQuery)
     .map((term) => term.toLowerCase().trim())
     .filter(Boolean);
 
@@ -108,7 +113,7 @@ function searchMatchesListing(listing: any, query: string) {
   }
 
   const haystack = listingSearchText(listing);
-  return terms.some((term) => haystack.includes(term));
+  return terms.some((term) => haystack.includes(term)) || haystack.includes(cleanQuery.toLowerCase());
 }
 
 function listingCountKey(category: string | null | undefined, subcategory?: string | null) {
@@ -274,7 +279,10 @@ export default async function MarketplacePage({
   const currentPage = pageNumber(params.page);
   const offset = (currentPage - 1) * pageSize;
   const category = params.category && params.category !== "all" ? normalizeMarketplaceCategory(params.category) : "all";
+  const detectedLocation = findLocationInSearch(q);
+  const searchWithoutLocation = stripLocationFromSearch(q, detectedLocation);
   const hasSearch = Boolean(q.trim());
+  const hasTextSearch = Boolean(searchWithoutLocation.trim());
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
   const returnParams = new URLSearchParams();
   if (q) returnParams.set("q", q);
@@ -324,6 +332,25 @@ export default async function MarketplacePage({
     listingQuery = listingQuery.or(`province.ilike.%${place}%,town.ilike.%${place}%,approximate_location.ilike.%${place}%`);
   }
 
+  if (!location.trim() && detectedLocation) {
+    const locationTerms = detectedLocation.type === "province"
+      ? [detectedLocation.province]
+      : [detectedLocation.town, ...detectedLocation.aliases, detectedLocation.province].filter(Boolean);
+    const locationFilter = locationTerms
+      .map((term) => String(term).replace(/[%_,]/g, " ").trim())
+      .filter(Boolean)
+      .flatMap((term) => [
+        `province.ilike.%${term}%`,
+        `town.ilike.%${term}%`,
+        `approximate_location.ilike.%${term}%`
+      ])
+      .join(",");
+
+    if (locationFilter) {
+      listingQuery = listingQuery.or(locationFilter);
+    }
+  }
+
   if (price === "under_5000") {
     listingQuery = listingQuery.lt("price", 5000);
   } else if (price === "5000_20000") {
@@ -335,8 +362,8 @@ export default async function MarketplacePage({
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
     .range(hasSearch ? 0 : offset, hasSearch ? 119 : offset + pageSize - 1);
-  const searchFilteredListings = q.trim()
-    ? (rawListings ?? []).filter((listing) => searchMatchesListing(listing, q))
+  const searchFilteredListings = hasTextSearch
+    ? (rawListings ?? []).filter((listing) => searchMatchesListing(listing, searchWithoutLocation))
     : rawListings;
   const listings = sex === "all"
     ? searchFilteredListings
@@ -349,14 +376,24 @@ export default async function MarketplacePage({
   const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
-    .select("category, subcategory")
+    .select("category, subcategory, province, town, approximate_location")
     .eq("status", "active")
-    .limit(1000);
+    .limit(5000);
   const listingCounts = new Map<string, number>();
+  const locationCounts = new Map<string, number>();
   for (const row of listingCountRows ?? []) {
     listingCounts.set(listingCountKey(row.category), (listingCounts.get(listingCountKey(row.category)) ?? 0) + 1);
     if (row.subcategory) {
       listingCounts.set(listingCountKey(row.category, row.subcategory), (listingCounts.get(listingCountKey(row.category, row.subcategory)) ?? 0) + 1);
+    }
+
+    if (row.province) {
+      locationCounts.set(String(row.province).toLowerCase(), (locationCounts.get(String(row.province).toLowerCase()) ?? 0) + 1);
+    }
+
+    if (row.town && row.province) {
+      const townKey = `${String(row.town).toLowerCase()}::${String(row.province).toLowerCase()}`;
+      locationCounts.set(townKey, (locationCounts.get(townKey) ?? 0) + 1);
     }
   }
   const moreCategoryGroups = marketplaceCategoryTree.map((categoryItem) => ({
@@ -376,6 +413,7 @@ export default async function MarketplacePage({
       }))
     ]
   }));
+  const locationCountObject = Object.fromEntries(locationCounts);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
     .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, marketplace_listings(id, status)")
@@ -401,7 +439,7 @@ export default async function MarketplacePage({
             <p className="mt-3 max-w-xl text-sm text-green-50 sm:text-base">Livestock, equipment, feed, crops and services. All in one trusted marketplace.</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link href={sellHref as never} className="primary-button bg-green-600 hover:bg-green-700">Sell Your Item</Link>
-              <Link href="/account/support/help-centre" className="secondary-button border-white/40 bg-white/10 text-white hover:border-white hover:text-white">How It Works</Link>
+              <Link href={"/how-it-works" as never} className="secondary-button border-white/40 bg-white/10 text-white hover:border-white hover:text-white">How It Works</Link>
             </div>
           </div>
         </div>
@@ -703,6 +741,7 @@ export default async function MarketplacePage({
       q={q}
       category={category}
       subcategory={subcategory}
+      locationCounts={locationCountObject}
     >
       {content}
     </MarketplacePageShell>

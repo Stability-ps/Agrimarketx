@@ -390,3 +390,108 @@ export function cityDirectory() {
 export function cityBySlug(slug: string) {
   return cityDirectory().find((city) => city.slug === slug);
 }
+
+function normalizeLocationSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function locationAliases(value: string) {
+  const names = new Set([value]);
+  for (const part of value.split("/")) {
+    const cleanPart = part.trim();
+    if (cleanPart) {
+      names.add(cleanPart);
+    }
+  }
+
+  return Array.from(names);
+}
+
+export type MarketplaceLocationItem = {
+  label: string;
+  query: string;
+  province: string;
+  provinceSlug: string;
+  town?: string;
+  type: "province" | "town";
+  aliases: string[];
+  normalizedAliases: string[];
+};
+
+export function marketplaceLocationItems(): MarketplaceLocationItem[] {
+  const provinceItems = provinceDirectory.map((province) => ({
+    label: province.name,
+    query: province.name,
+    province: province.name,
+    provinceSlug: province.slug,
+    type: "province" as const,
+    aliases: [province.name],
+    normalizedAliases: [normalizeLocationSearchText(province.name)]
+  }));
+
+  const townItems = provinceDirectory.flatMap((province) =>
+    province.towns.map((town) => {
+      const aliases = locationAliases(town);
+
+      return {
+        label: `${town}, ${province.name}`,
+        query: town,
+        province: province.name,
+        provinceSlug: province.slug,
+        town,
+        type: "town" as const,
+        aliases,
+        normalizedAliases: aliases.map(normalizeLocationSearchText)
+      };
+    })
+  );
+
+  return [...provinceItems, ...townItems];
+}
+
+export function findLocationInSearch(query: string) {
+  const normalizedQuery = ` ${normalizeLocationSearchText(query)} `;
+  if (!normalizedQuery.trim()) {
+    return null;
+  }
+
+  const matches = marketplaceLocationItems()
+    .flatMap((location) =>
+      location.normalizedAliases.map((alias) => ({
+        location,
+        alias
+      }))
+    )
+    .filter(({ alias }) => alias && normalizedQuery.includes(` ${alias} `))
+    .sort((a, b) => {
+      if (a.location.type !== b.location.type) {
+        return a.location.type === "town" ? -1 : 1;
+      }
+
+      return b.alias.length - a.alias.length;
+    });
+
+  return matches[0]?.location ?? null;
+}
+
+export function stripLocationFromSearch(query: string, location: MarketplaceLocationItem | null) {
+  if (!location) {
+    return query;
+  }
+
+  let cleaned = ` ${query} `;
+  for (const alias of location.aliases.sort((a, b) => b.length - a.length)) {
+    cleaned = cleaned.replace(new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "ig"), " ");
+  }
+
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
+export function locationSuggestionItems() {
+  return marketplaceLocationItems();
+}

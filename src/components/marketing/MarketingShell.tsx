@@ -1,16 +1,16 @@
 import Link from "next/link";
-import type { Route } from "next";
 
-const navItems: { href: Route; label: string }[] = [
+const navItems: { href: string; label: string }[] = [
   { href: "/", label: "Home" },
   { href: "/features", label: "Features" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" }
 ];
 
-const publicInfoLinks: { href: Route; label: string }[] = [
+const publicInfoLinks: { href: string; label: string }[] = [
   { href: "/help-centre", label: "Help Centre" },
   { href: "/safety-advice", label: "Safety Advice" },
   { href: "/marketplace-rules", label: "Marketplace Rules" },
@@ -29,7 +29,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 lg:flex">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="hover:text-brand-green">
+              <Link key={item.href} href={item.href as never} className="hover:text-brand-green">
                 {item.label}
               </Link>
             ))}
@@ -57,7 +57,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <h3 className="font-bold">Platform</h3>
             <div className="mt-3 grid gap-2 text-sm text-slate-600">
               {navItems.slice(1).map((item) => (
-                <Link key={item.href} href={item.href} className="hover:text-brand-green">
+                <Link key={item.href} href={item.href as never} className="hover:text-brand-green">
                   {item.label}
                 </Link>
               ))}
@@ -75,7 +75,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <h3 className="font-bold">Help & Legal</h3>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">
               {publicInfoLinks.map((item) => (
-                <Link key={item.href} href={item.href} className="hover:text-brand-green">
+                <Link key={item.href} href={item.href as never} className="hover:text-brand-green">
                   {item.label}
                 </Link>
               ))}
