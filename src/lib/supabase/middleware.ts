@@ -43,6 +43,10 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  if (!isProtected && pathname !== "/login") {
+    return NextResponse.next({ request });
+  }
+
   if (!supabaseUrl || !supabaseAnonKey) {
     if (isProtected) {
       const url = request.nextUrl.clone();

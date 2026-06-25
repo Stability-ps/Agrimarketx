@@ -51,7 +51,7 @@ export default async function CityPage({
 
   if (!city) {
     return (
-      <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+      <MarketplacePageShell>
         <PageHeader title="City not found" description="This city page is not available." />
       </MarketplacePageShell>
     );
@@ -181,7 +181,7 @@ export default async function CityPage({
   );
 
   return (
-    <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+    <MarketplacePageShell>
       {content}
     </MarketplacePageShell>
   );

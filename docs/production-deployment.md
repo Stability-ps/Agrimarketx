@@ -67,6 +67,7 @@ Run every file in `supabase/migrations` in number order:
 23. `023_marketplace_category_structure.sql`
 24. `024_marketplace_search_category_updates.sql`
 25. `025_production_indexes.sql`
+26. `026_marketplace_search_indexes.sql`
 
 Then run:
 

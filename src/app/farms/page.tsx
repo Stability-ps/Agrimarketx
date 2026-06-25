@@ -23,7 +23,7 @@ export default async function FarmsPage() {
     .limit(60);
 
   return (
-    <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+    <MarketplacePageShell>
       <section className="mb-5">
         <h1 className="text-2xl font-bold text-brand-navy">Farms on AgriMarketX</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">Browse public farm profiles, verified sellers and active farm listings across South Africa.</p>

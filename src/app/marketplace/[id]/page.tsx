@@ -124,7 +124,7 @@ export default async function MarketplaceListingDetailPage({
 
   if (!listing) {
     return (
-      <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+      <MarketplacePageShell>
         <section className="panel p-6 text-center">
           <h1 className="text-xl font-bold">Listing not found</h1>
           <Link href="/marketplace" className="primary-button mt-4">Back to marketplace</Link>
@@ -202,7 +202,7 @@ export default async function MarketplaceListingDetailPage({
     .slice(0, 8);
 
   return (
-    <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+    <MarketplacePageShell>
       <a href={backHref} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-brand-green hover:underline">
         <ArrowLeft size={17} />
         Back to Marketplace

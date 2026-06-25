@@ -34,6 +34,7 @@ async function uploadWantedPhotos(supabase: Awaited<ReturnType<typeof createClie
     const path = `buyer-requests/${requestId}/${Date.now()}-${index}-${cleanFileName(file.name)}`;
     const { error: uploadError } = await supabase.storage.from("farm-assets").upload(path, file, {
       contentType: file.type,
+      cacheControl: "31536000",
       upsert: false
     });
 

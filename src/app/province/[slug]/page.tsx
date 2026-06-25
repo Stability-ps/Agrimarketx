@@ -51,7 +51,7 @@ export default async function ProvincePage({
 
   if (!province) {
     return (
-      <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+      <MarketplacePageShell>
         <PageHeader title="Province not found" description="This province page is not available." />
       </MarketplacePageShell>
     );
@@ -189,7 +189,7 @@ export default async function ProvincePage({
   );
 
   return (
-    <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+    <MarketplacePageShell>
       {content}
     </MarketplacePageShell>
   );

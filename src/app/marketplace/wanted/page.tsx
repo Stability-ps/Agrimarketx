@@ -54,7 +54,7 @@ export default async function WantedListingsPage({
   const selected = requests?.find((item) => item.id === request);
 
   return (
-    <MarketplacePageShell accountRole={profile?.account_role ?? "buyer"} userEmail={user?.email ?? profile?.email} userName={profile?.full_name} avatarUrl={profile?.avatar_url}>
+    <MarketplacePageShell>
       <section className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-brand-navy">Wanted Listings</h1>

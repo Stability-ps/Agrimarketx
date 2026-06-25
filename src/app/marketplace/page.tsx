@@ -33,8 +33,12 @@ import {
   normalizeMarketplaceCategory
 } from "@/lib/marketplace-categories";
 import { provinceDirectory, provincePreview } from "@/lib/provinces";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicSupabaseClient } from "@/lib/supabase/public-server";
 import { toggleSavedListing } from "./actions";
+
+export const revalidate = 60;
+
+const pageSize = 24;
 
 const categoryShortcuts = [
   { label: "Livestock", href: "/marketplace?category=livestock", icon: PawPrint },
@@ -109,6 +113,11 @@ function searchMatchesListing(listing: any, query: string) {
 
 function listingCountKey(category: string | null | undefined, subcategory?: string | null) {
   return `${category ?? ""}::${subcategory ?? ""}`;
+}
+
+function pageNumber(value: string | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
 }
 
 function quickInfoForListing(listing: any) {
@@ -210,7 +219,7 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
       <div className="relative">
         <div>
           {photo?.storage_path ? (
-            <img src={publicStorageUrl(bucket, photo.storage_path)} alt={listing.title} className="h-36 w-full object-cover" />
+            <img src={publicStorageUrl(bucket, photo.storage_path)} alt={listing.title} className="h-36 w-full object-cover" loading="lazy" decoding="async" />
           ) : (
             <div className="grid h-36 place-items-center bg-green-50 text-sm font-bold text-brand-green">No photo</div>
           )}
@@ -270,10 +279,12 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
 export default async function MarketplacePage({
   searchParams
 }: {
-  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; sex?: string; price?: string; contact?: string }>;
+  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; sex?: string; price?: string; contact?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const { message, q = "", subcategory = "", location = "", sex = "all", price = "all", contact = "" } = params;
+  const currentPage = pageNumber(params.page);
+  const offset = (currentPage - 1) * pageSize;
   const category = params.category && params.category !== "all" ? normalizeMarketplaceCategory(params.category) : "all";
   const hasSearch = Boolean(q.trim());
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
@@ -285,19 +296,8 @@ export default async function MarketplacePage({
   if (sex && sex !== "all") returnParams.set("sex", sex);
   if (price && price !== "all") returnParams.set("price", price);
   const returnPath = `/marketplace${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("full_name, email, account_role, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle()
-    : { data: null };
-  const canSell = ["seller", "admin", "super_admin"].includes(profile?.account_role ?? "buyer");
-  const sellHref = !user ? "/login?next=%2Fmarketplace%2Fcreate" : canSell ? "/marketplace/create" : "/onboarding?next=%2Fmarketplace%2Fcreate";
+  const supabase = createPublicSupabaseClient();
+  const sellHref = "/marketplace/create";
   let listingQuery = supabase
     .from("marketplace_listings")
     .select(`
@@ -346,7 +346,7 @@ export default async function MarketplacePage({
 
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
-    .limit(hasSearch ? 120 : 24);
+    .range(hasSearch ? 0 : offset, hasSearch ? 119 : offset + pageSize - 1);
   const searchFilteredListings = q.trim()
     ? (rawListings ?? []).filter((listing) => searchMatchesListing(listing, q))
     : rawListings;
@@ -356,13 +356,9 @@ export default async function MarketplacePage({
         const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
         return String(animal?.gender ?? "").toLowerCase() === sex;
       });
-  const { data: savedListings } = user
-    ? await supabase
-        .from("marketplace_saved_listings")
-        .select("listing_id")
-        .eq("user_id", user.id)
-    : { data: [] };
-  const savedListingIds = new Set((savedListings ?? []).map((item) => item.listing_id));
+  const pagedListings = hasSearch ? (listings ?? []).slice(offset, offset + pageSize) : listings;
+  const hasNextPage = hasSearch ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
+  const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
     .select("category, subcategory")
@@ -501,7 +497,7 @@ export default async function MarketplacePage({
           </div>
           <a href="#marketplace-results" className="text-sm font-bold text-brand-green">View all</a>
         </div>
-        {(listings ?? []).length === 0 ? (
+        {(pagedListings ?? []).length === 0 ? (
           <section className="panel p-6 text-center">
             <h3 className="font-bold">{q ? `No listings found for ${q}` : "No marketplace listings yet"}</h3>
             <p className="mt-2 text-sm text-slate-600">
@@ -519,11 +515,28 @@ export default async function MarketplacePage({
             <Link href={sellHref as never} className="primary-button mt-4">Create listing</Link>
           </section>
         ) : (
-          <div id="marketplace-results" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {(listings ?? []).map((listing) => (
-          <MarketplaceHomeListingCard key={listing.id} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} />
-            ))}
-          </div>
+          <>
+            <div id="marketplace-results" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {(pagedListings ?? []).map((listing) => (
+                <MarketplaceHomeListingCard key={listing.id} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} />
+              ))}
+            </div>
+            {(currentPage > 1 || hasNextPage) ? (
+              <div className="mt-5 flex items-center justify-center gap-3">
+                {currentPage > 1 ? (
+                  <Link href={`/marketplace?${new URLSearchParams({ ...Object.fromEntries(returnParams), page: String(currentPage - 1) }).toString()}` as never} className="secondary-button">
+                    Previous
+                  </Link>
+                ) : null}
+                <span className="rounded-md bg-slate-50 px-3 py-2 text-sm font-bold text-slate-600">Page {currentPage}</span>
+                {hasNextPage ? (
+                  <Link href={`/marketplace?${new URLSearchParams({ ...Object.fromEntries(returnParams), page: String(currentPage + 1) }).toString()}` as never} className="secondary-button">
+                    Next
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         )}
       </section>
       <section className="mb-6">
@@ -547,14 +560,14 @@ export default async function MarketplacePage({
             return (
               <Link key={featuredFarm.id} href={`/farms/${featuredFarm.id}` as never} className="overflow-hidden rounded-md border border-slate-200 bg-white transition hover:border-brand-green">
                 {featuredFarm.photo_url ? (
-                  <img src={featuredFarm.photo_url} alt={featuredFarm.name} className="h-28 w-full object-cover" />
+                  <img src={featuredFarm.photo_url} alt={featuredFarm.name} className="h-28 w-full object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <div className="grid h-28 place-items-center bg-green-50 text-sm font-bold text-brand-green">Farm</div>
                 )}
                 <div className="p-3">
                   <div className="flex items-start gap-3">
                     {featuredFarm.logo_url ? (
-                      <img src={featuredFarm.logo_url} alt={featuredFarm.name} className="-mt-9 h-14 w-14 rounded-full border-4 border-white object-cover" />
+                      <img src={featuredFarm.logo_url} alt={featuredFarm.name} className="-mt-9 h-14 w-14 rounded-full border-4 border-white object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div className="-mt-9 grid h-14 w-14 shrink-0 place-items-center rounded-full border-4 border-white bg-green-50 text-xs font-bold text-brand-green">Farm</div>
                     )}
@@ -699,13 +712,9 @@ export default async function MarketplacePage({
 
   return (
     <MarketplacePageShell
-      accountRole={profile?.account_role ?? "buyer"}
       q={q}
       category={category}
       subcategory={subcategory}
-      userEmail={user?.email ?? profile?.email}
-      userName={profile?.full_name}
-      avatarUrl={profile?.avatar_url}
     >
       {content}
     </MarketplacePageShell>

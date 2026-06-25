@@ -207,7 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (accountRole === "buyer" && !pathname.startsWith("/admin")) {
     return (
       <main className="min-h-screen bg-white text-brand-navy">
-        <MarketplaceHeader accountRole={accountRole} userEmail={profile.email} userName={profile.full_name} avatarUrl={profile.avatar_url} />
+        <MarketplaceHeader />
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">{children}</div>
       </main>
     );
