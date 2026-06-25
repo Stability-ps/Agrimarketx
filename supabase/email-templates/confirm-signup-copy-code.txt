@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verify your AgriMarketX email</title>
+  </head>
+  <body style="margin:0;background:#f8fafc;color:#0F172A;font-family:Arial,Helvetica,sans-serif">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:24px 12px">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+            <tr>
+              <td style="padding:22px 24px;border-bottom:4px solid #2E7D32">
+                <img src="../../public/agrimarketx-email-logo.png" alt="AgriMarketX" style="display:block;width:220px;max-width:100%;height:auto;margin-bottom:8px" />
+                <div style="font-size:20px;font-weight:800;color:#2E7D32">AgriMarketX</div>
+                <div style="font-size:12px;color:#64748b;margin-top:3px">Manage. Track. Trade.</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 24px">
+                <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#0F172A">Verify your email address</h1>
+                <p style="font-size:15px;line-height:1.65;color:#334155;margin:0">
+                  Welcome to AgriMarketX. Please confirm your email address so we can protect your account and help you start buying, selling or managing farm records.
+                </p>
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2E7D32;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin-top:18px">Verify Email</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f8fafc;padding:18px 24px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:#64748b">
+                <strong style="color:#0F172A">AgriMarketX</strong><br />
+                Need help? Email <a href="mailto:support@agrimarketx.com" style="color:#2E7D32">support@agrimarketx.com</a><br />
+                Copyright 2026 AgriMarketX. All rights reserved.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
