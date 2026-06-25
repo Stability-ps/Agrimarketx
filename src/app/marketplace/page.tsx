@@ -20,6 +20,7 @@ import {
 import { MarketplacePageShell } from "@/components/MarketplaceShell";
 import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
+import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/lib/marketplace-categories";
 import { provinceDirectory, provincePreview } from "@/lib/provinces";
 import { createPublicSupabaseClient } from "@/lib/supabase/public-server";
-import { toggleSavedListing } from "./actions";
 
 export const revalidate = 60;
 
@@ -211,7 +211,6 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
   const verified = (Array.isArray(listing.farms) ? listing.farms[0] : listing.farms)?.seller_verification_status === "verified";
   const quickInfo = quickInfoForListing(listing);
   const detailHref = `/marketplace/${listing.id}?returnTo=${encodeURIComponent(returnPath)}`;
-  const saveRedirectHref = `${returnPath}${returnPath.includes("?") ? "&" : "?"}message=${encodeURIComponent(isSaved ? "Removed from favourites." : "Saved to your favourites.")}`;
 
   return (
     <article id={`listing-${listing.id}`} className="group relative overflow-hidden rounded-md border border-slate-200 bg-white transition hover:border-brand-green">
@@ -232,18 +231,7 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
         ) : null}
         <div className="absolute right-3 top-3 z-20 flex gap-2">
           <MarketplaceShareButton title={listing.title} url={`/marketplace/${listing.id}`} listingId={listing.id} />
-          <form action={toggleSavedListing} className="relative z-20">
-            <input type="hidden" name="listingId" value={listing.id} />
-            <input type="hidden" name="saved" value={isSaved ? "true" : "false"} />
-            <input type="hidden" name="redirectTo" value={saveRedirectHref} />
-            <button
-              className={`grid h-9 w-9 place-items-center rounded-full border bg-white/95 shadow-soft transition hover:border-brand-green ${isSaved ? "border-red-200 text-red-600" : "border-slate-200 text-slate-600"}`}
-              type="submit"
-              aria-label={isSaved ? "Remove from favourites" : "Save to favourites"}
-            >
-              <Heart size={18} fill={isSaved ? "currentColor" : "none"} />
-            </button>
-          </form>
+          <SaveListingButton listingId={listing.id} initiallySaved={isSaved} />
         </div>
       </div>
       <div className="relative p-3">
@@ -323,11 +311,11 @@ export default async function MarketplacePage({
     `)
     .eq("status", "active");
 
-  if (!hasSearch && category !== "all") {
+  if (category !== "all") {
     listingQuery = listingQuery.eq("category", category);
   }
 
-  if (!hasSearch && subcategory.trim()) {
+  if (subcategory.trim()) {
     listingQuery = listingQuery.eq("subcategory", subcategory.trim());
   }
 
