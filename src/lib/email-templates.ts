@@ -8,7 +8,12 @@ type EmailTemplateOptions = {
   success?: string;
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://agrimarketx.com";
+const productionUrl = "https://agrimarketx.co.za";
+const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const siteUrl =
+  configuredSiteUrl && !configuredSiteUrl.includes("REPLACE-WITH-YOUR-VERCEL-DOMAIN")
+    ? configuredSiteUrl
+    : productionUrl;
 const supportEmail = "support@agrimarketx.com";
 
 export function brandedEmailTemplate({ title, preview, body, ctaLabel, ctaUrl, alert, success }: EmailTemplateOptions) {

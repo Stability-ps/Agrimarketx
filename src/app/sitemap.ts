@@ -1,7 +1,12 @@
 import type { MetadataRoute } from "next";
 import { cityDirectory, provinceDirectory } from "@/lib/provinces";
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://127.0.0.1:3000";
+const productionUrl = "https://agrimarketx.co.za";
+const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const baseUrl =
+  configuredSiteUrl && !configuredSiteUrl.includes("REPLACE-WITH-YOUR-VERCEL-DOMAIN")
+    ? configuredSiteUrl
+    : productionUrl;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
