@@ -302,5 +302,5 @@ export function normalizeDiditWebhook(payload: Record<string, unknown>): DiditSt
 }
 
 export function identityTrustScore(status: SellerVerificationStatus | string | null | undefined) {
-  return status === "approved" ? 20 : 0;
+  return status === "approved" ? 60 : 0;
 }

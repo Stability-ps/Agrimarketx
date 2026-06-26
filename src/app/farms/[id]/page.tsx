@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
@@ -34,6 +34,20 @@ export default async function PublicFarmProfilePage({
   const { data: follow } = user
     ? await supabase.from("farm_followers").select("id").eq("farm_id", id).eq("user_id", user.id).maybeSingle()
     : { data: null };
+  const { data: ownerMember } = await supabase
+    .from("farm_members")
+    .select("user_id")
+    .eq("farm_id", id)
+    .eq("role", "owner")
+    .limit(1)
+    .maybeSingle();
+  const { data: sellerVerification } = ownerMember?.user_id
+    ? await supabase
+        .from("seller_verifications")
+        .select("status, email_verified, phone_verified")
+        .eq("user_id", ownerMember.user_id)
+        .maybeSingle()
+    : { data: null };
 
   if (!farm) {
     return (
@@ -44,6 +58,10 @@ export default async function PublicFarmProfilePage({
   }
 
   const verified = farm.seller_verification_status === "verified";
+  const identityVerified = sellerVerification?.status === "approved" || verified;
+  const emailVerified = Boolean(sellerVerification?.email_verified);
+  const phoneVerified = Boolean(sellerVerification?.phone_verified);
+  const trustScore = (identityVerified ? 60 : 0) + (emailVerified ? 20 : 0) + (phoneVerified ? 20 : 0);
   const location = farm.location || [farm.province, farm.country].filter(Boolean).join(", ") || "Location not set";
 
   return (
@@ -62,7 +80,7 @@ export default async function PublicFarmProfilePage({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold">{farm.name}</h2>
-                {verified ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-green-800"><ShieldCheck size={14} /> Verified Seller</span> : null}
+                {identityVerified ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-green-800"><ShieldCheck size={14} /> Identity Verified</span> : null}
               </div>
               <p className="mt-1 inline-flex items-center gap-1 text-sm text-slate-600"><MapPin size={15} /> {location}</p>
               {(farm.supply_categories ?? []).length > 0 ? (
@@ -75,6 +93,15 @@ export default async function PublicFarmProfilePage({
                 </div>
               ) : null}
               <p className="mt-3 text-sm text-slate-700">{farm.description || "This farm has not added a public description yet."}</p>
+              <div className="mt-4 rounded-md border border-slate-200 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-bold">Verified Information</p>
+                  <p className="text-sm font-bold text-brand-green">{trustScore} Trust Score</p>
+                </div>
+                <VerifiedInfoRow done={identityVerified} icon={ShieldCheck} label="Identity (SA ID / Passport)" />
+                <VerifiedInfoRow done={phoneVerified} icon={Phone} label="Mobile Number" />
+                <VerifiedInfoRow done={emailVerified} icon={Mail} label="Email Address" />
+              </div>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -112,5 +139,14 @@ export default async function PublicFarmProfilePage({
         </div>
       </section>
     </AppShell>
+  );
+}
+
+function VerifiedInfoRow({ done, icon: Icon, label }: { done: boolean; icon: typeof ShieldCheck; label: string }) {
+  return (
+    <p className={`mt-2 flex items-center gap-2 text-sm font-semibold ${done ? "text-green-800" : "text-slate-400"}`}>
+      {done ? <CheckCircle2 size={16} /> : <Icon size={16} />}
+      {label}
+    </p>
   );
 }

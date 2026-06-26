@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar, Flag, Heart, MapPin, MessageCircle, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, Flag, Heart, Mail, MapPin, MessageCircle, Phone, Send, ShieldCheck } from "lucide-react";
 import { MarketplacePageShell } from "@/components/MarketplaceShell";
 import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { recordListingContactClick } from "@/app/account/actions";
@@ -160,6 +160,22 @@ export default async function MarketplaceListingDetailPage({
         .eq("user_id", user.id)
         .maybeSingle()
     : { data: null };
+  const { data: sellerMember } = listing.seller_farm_id
+    ? await supabase
+        .from("farm_members")
+        .select("user_id")
+        .eq("farm_id", listing.seller_farm_id)
+        .eq("role", "owner")
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
+  const { data: sellerVerification } = sellerMember?.user_id
+    ? await supabase
+        .from("seller_verifications")
+        .select("status, email_verified, phone_verified")
+        .eq("user_id", sellerMember.user_id)
+        .maybeSingle()
+    : { data: null };
 
   const { data: similarAds } = await supabase
     .from("marketplace_listings")
@@ -190,6 +206,10 @@ export default async function MarketplaceListingDetailPage({
   const mainPhoto = photos.find((item: any) => item.is_primary) ?? photos[0];
   const location = listing.approximate_location || [listing.town, listing.province].filter(Boolean).join(", ") || "Location not set";
   const verified = farm?.seller_verification_status === "verified";
+  const identityVerified = sellerVerification?.status === "approved" || verified;
+  const emailVerified = Boolean(sellerVerification?.email_verified);
+  const phoneVerified = Boolean(sellerVerification?.phone_verified);
+  const trustScore = (identityVerified ? 60 : 0) + (emailVerified ? 20 : 0) + (phoneVerified ? 20 : 0);
   const details = detailsForDisplay(listing.listing_details as Record<string, unknown>);
   const canSeeStatus = ["seller", "admin", "super_admin"].includes(profile?.account_role ?? "");
   const backHref = returnTo?.startsWith("/marketplace") ? returnTo : "/marketplace";
@@ -236,7 +256,7 @@ export default async function MarketplaceListingDetailPage({
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{marketplaceCategoryLabel(listing.category)}</span>
               {marketplaceSubcategoryLabel(listing.category, listing.subcategory) ? <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{marketplaceSubcategoryLabel(listing.category, listing.subcategory)}</span> : null}
-              {verified ? <span className="rounded-full bg-green-50 px-2 py-1 text-brand-green">Identity Verified</span> : null}
+              {identityVerified ? <span className="group relative rounded-full bg-green-50 px-2 py-1 text-brand-green">Identity Verified<span className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-64 rounded-md border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-soft group-hover:block">Verified identity using government ID. Verified mobile number and email are shown in the seller panel.</span></span> : null}
               {canSeeStatus ? <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Status: {String(listing.status).replace("_", " ")}</span> : null}
             </div>
             <p className="mt-3 flex items-center gap-1 text-sm text-slate-500"><Calendar size={15} /> Listed {new Date(listing.created_at).toLocaleDateString("en-ZA")}</p>
@@ -272,12 +292,18 @@ export default async function MarketplaceListingDetailPage({
                 <p className="text-sm text-slate-600">{farm?.province || farm?.location || "South Africa"}</p>
               </div>
             </div>
-            {verified ? (
+            {identityVerified ? (
               <div className="mt-3 grid gap-2">
                 <p className="inline-flex w-fit items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-brand-green"><ShieldCheck size={14} /> Identity Verified</p>
-                <p className="text-sm font-semibold text-slate-700">Trust Score 20/100</p>
+                <p className="text-sm font-semibold text-slate-700">Trust Score {trustScore}/100</p>
               </div>
             ) : null}
+            <div className="mt-4 rounded-md border border-slate-200 p-3">
+              <p className="font-bold">Verified Information</p>
+              <VerifiedInfoRow done={identityVerified} icon={ShieldCheck} label="Identity (SA ID / Passport)" />
+              <VerifiedInfoRow done={phoneVerified} icon={Phone} label="Mobile Number" />
+              <VerifiedInfoRow done={emailVerified} icon={Mail} label="Email Address" />
+            </div>
             {farm?.id ? <Link href={`/farms/${farm.id}` as never} className="secondary-button mt-4 w-full">View seller profile</Link> : null}
           </section>
 
@@ -363,5 +389,14 @@ function Detail({ label, value }: { label: string; value: string | number }) {
       <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
       <p className="mt-1 font-semibold text-brand-navy">{value}</p>
     </div>
+  );
+}
+
+function VerifiedInfoRow({ done, icon: Icon, label }: { done: boolean; icon: typeof ShieldCheck; label: string }) {
+  return (
+    <p className={`mt-2 flex items-center gap-2 text-sm font-semibold ${done ? "text-green-800" : "text-slate-400"}`}>
+      {done ? <CheckCircle2 size={16} /> : <Icon size={16} />}
+      {label}
+    </p>
   );
 }

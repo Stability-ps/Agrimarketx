@@ -80,12 +80,12 @@ export async function POST(request: Request) {
   const { data: current } = normalized.sessionId
     ? await admin
         .from("seller_verifications")
-        .select("id, user_id, webhook_event_ids")
+        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at")
         .eq("didit_session_id", normalized.sessionId)
         .maybeSingle()
     : await admin
         .from("seller_verifications")
-        .select("id, user_id, webhook_event_ids")
+        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at")
         .eq("user_id", normalized.userId ?? "")
         .maybeSingle();
 
@@ -118,6 +118,10 @@ export async function POST(request: Request) {
       status: normalized.status,
       verification_score: normalized.score,
       decision: normalized.decision,
+      phone_verified: current?.phone_verified ?? false,
+      phone_verified_at: current?.phone_verified_at ?? null,
+      email_verified: current?.email_verified ?? false,
+      email_verified_at: current?.email_verified_at ?? null,
       webhook_event_ids: nextEventIds,
       raw_result: payload
     }, {

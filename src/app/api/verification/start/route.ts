@@ -52,6 +52,8 @@ export async function POST() {
       status: "pending",
       decision: null,
       verification_score: null,
+      email_verified: Boolean(user.email_confirmed_at || user.confirmed_at),
+      email_verified_at: user.email_confirmed_at ?? user.confirmed_at ?? null,
       raw_result: session.payload
     }, {
       onConflict: "user_id"
