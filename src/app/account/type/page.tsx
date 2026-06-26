@@ -26,7 +26,8 @@ export default async function AccountTypePage({
             {message}
           </div>
         ) : null}
-        <form action={chooseAccountType} className="grid gap-4 md:grid-cols-2">
+        <form action={chooseAccountType} className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
           <button
             className="panel p-5 text-left transition hover:border-brand-green hover:shadow-sm"
             name="accountType"
@@ -47,6 +48,21 @@ export default async function AccountTypePage({
             <h2 className="mt-4 text-lg font-bold text-brand-navy">Manage my farm / Sell</h2>
             <p className="mt-2 text-sm text-slate-600">Create farm profiles, manage farm records, and sell agricultural products or services.</p>
           </button>
+          </div>
+          <div className="panel p-4">
+            <p className="text-sm font-bold text-brand-navy">If you choose Seller, what type of seller are you?</p>
+            <p className="mt-1 text-xs text-slate-500">This only controls verification. Both seller types can sell every marketplace category.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <label className="flex items-start gap-3 rounded-md border border-slate-200 p-3 text-sm">
+                <input type="radio" name="sellerType" value="individual" defaultChecked />
+                <span><b>Individual Seller</b><br /><span className="text-slate-600">Farmers, breeders, traders and individuals.</span></span>
+              </label>
+              <label className="flex items-start gap-3 rounded-md border border-slate-200 p-3 text-sm">
+                <input type="radio" name="sellerType" value="business" />
+                <span><b>Business Seller</b><br /><span className="text-slate-600">Feed stores, vets, dealers, co-ops and agri suppliers.</span></span>
+              </label>
+            </div>
+          </div>
         </form>
       </section>
     </main>

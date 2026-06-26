@@ -26,13 +26,9 @@ async function syncFarmVerificationFlags(
     email_verified_at: emailVerifiedAt,
     phone_verified: phoneVerified,
     phone_verified_at: phoneVerifiedAt,
-    seller_verification_status: phoneVerified && emailVerified ? "verified" : "pending_review",
+    seller_verification_status: "pending",
     verification_updated_at: new Date().toISOString()
   };
-
-  if (phoneVerified && emailVerified) {
-    updatePayload.seller_verified_at = new Date().toISOString();
-  }
 
   await admin
     .from("farms")

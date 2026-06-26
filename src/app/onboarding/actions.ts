@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ACTIVE_FARM_COOKIE } from "@/lib/farm-cookie";
 import { normalizeSupplyCategories } from "@/lib/supply-categories";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function go(path: string): never {
@@ -55,6 +56,7 @@ export async function createFarm(formData: FormData) {
   const selectedSpecies = formData.getAll("species").map((item) => String(item));
   const supplyCategories = normalizeSupplyCategories(formData.getAll("supplyCategories").map((item) => String(item)));
   const next = String(formData.get("next") ?? "/dashboard");
+  const sellerType = String(formData.get("sellerType") ?? "individual") === "business" ? "business" : "individual";
   const coordinates = parseCoordinates(formData.get("gpsCoordinates"));
   const sizeHectares = parseNumber(formData.get("sizeHectares"));
 
@@ -98,6 +100,8 @@ export async function createFarm(formData: FormData) {
       gps_longitude: coordinates.longitude,
       size_hectares: sizeHectares,
       farm_type: farmType,
+      seller_type: sellerType,
+      seller_account_role: sellerType === "business" ? "business_seller" : "individual_seller",
       supply_categories: supplyCategories,
       facilities
     })
@@ -142,6 +146,15 @@ export async function createFarm(formData: FormData) {
       }
     }
   }
+
+  const admin = createAdminClient();
+  await admin.from("seller_verifications").upsert({
+    user_id: user.id,
+    seller_type: sellerType,
+    account_role: sellerType === "business" ? "business_seller" : "individual_seller",
+    email_verified: Boolean(user.email_confirmed_at || user.confirmed_at),
+    email_verified_at: user.email_confirmed_at ?? user.confirmed_at ?? null
+  }, { onConflict: "user_id" });
 
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_FARM_COOKIE, farm.id, {

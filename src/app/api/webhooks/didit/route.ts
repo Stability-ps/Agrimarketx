@@ -15,16 +15,46 @@ function header(request: Request, names: string[]) {
   return null;
 }
 
-function farmStatusForDiditStatus(status: string) {
+function facialStatusForDiditStatus(status: string) {
   if (status === "approved") {
     return "verified";
   }
 
   if (status === "declined" || status === "resubmission_required") {
-    return "rejected";
+    return "failed";
   }
 
-  return "pending_review";
+  return "pending";
+}
+
+function finalStatusForVerification({
+  diditStatus,
+  sellerType,
+  documentStatus,
+  emailVerified,
+  phoneVerified
+}: {
+  diditStatus: string;
+  sellerType?: string | null;
+  documentStatus?: string | null;
+  emailVerified?: boolean | null;
+  phoneVerified?: boolean | null;
+}) {
+  if (diditStatus !== "approved") {
+    return sellerType === "business" && documentStatus === "approved"
+      ? "documents_approved_pending_facial_verification"
+      : "pending";
+  }
+
+  if (!emailVerified || !phoneVerified) {
+    return "pending";
+  }
+
+  if (sellerType === "business" && documentStatus !== "approved") {
+    return documentStatus === "submitted" ? "documents_submitted" : "pending";
+  }
+
+  return "verified";
 }
 
 export async function POST(request: Request) {
@@ -79,13 +109,13 @@ export async function POST(request: Request) {
 
   const { data: current } = normalized.sessionId
     ? await admin
-        .from("seller_verifications")
-        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at")
+      .from("seller_verifications")
+        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at, seller_type, document_status, admin_verification_override, seller_verification_status")
         .eq("didit_session_id", normalized.sessionId)
         .maybeSingle()
     : await admin
         .from("seller_verifications")
-        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at")
+        .select("id, user_id, webhook_event_ids, phone_verified, phone_verified_at, email_verified, email_verified_at, seller_type, document_status, admin_verification_override, seller_verification_status")
         .eq("user_id", normalized.userId ?? "")
         .maybeSingle();
 
@@ -108,6 +138,16 @@ export async function POST(request: Request) {
   const nextEventIds = normalized.eventId
     ? Array.from(new Set([...(current?.webhook_event_ids ?? []), normalized.eventId]))
     : current?.webhook_event_ids ?? [];
+  const nextFacialStatus = facialStatusForDiditStatus(normalized.status);
+  const nextSellerStatus = current?.admin_verification_override
+    ? current.seller_verification_status
+    : finalStatusForVerification({
+        diditStatus: normalized.status,
+        sellerType: current?.seller_type,
+        documentStatus: current?.document_status,
+        emailVerified: current?.email_verified,
+        phoneVerified: current?.phone_verified
+      });
 
   const { data: verification, error: verificationError } = await admin
     .from("seller_verifications")
@@ -118,6 +158,8 @@ export async function POST(request: Request) {
       status: normalized.status,
       verification_score: normalized.score,
       decision: normalized.decision,
+      facial_verification_status: nextFacialStatus,
+      seller_verification_status: nextSellerStatus,
       phone_verified: current?.phone_verified ?? false,
       phone_verified_at: current?.phone_verified_at ?? null,
       email_verified: current?.email_verified ?? false,
@@ -156,19 +198,35 @@ export async function POST(request: Request) {
 
   const { data: memberships } = await admin
     .from("farm_members")
-    .select("farm_id")
+    .select("farm_id, farms(seller_type, document_status, email_verified, phone_verified, admin_verification_override, seller_verification_status)")
     .eq("user_id", verification.user_id);
   const farmIds = (memberships ?? []).map((membership) => membership.farm_id).filter(Boolean);
 
   if (farmIds.length > 0) {
-    await admin
-      .from("farms")
-      .update({
-        seller_verification_status: farmStatusForDiditStatus(normalized.status),
-        seller_verification_reason: normalized.status === "approved" ? null : normalized.decision,
-        seller_verified_at: normalized.status === "approved" ? new Date().toISOString() : null
-      })
-      .in("id", farmIds);
+    const now = new Date().toISOString();
+    await Promise.all((memberships ?? []).map(async (membership) => {
+      const farm = Array.isArray(membership.farms) ? membership.farms[0] : membership.farms;
+      const farmNextStatus = farm?.admin_verification_override
+        ? farm.seller_verification_status
+        : finalStatusForVerification({
+            diditStatus: normalized.status,
+            sellerType: farm?.seller_type ?? current?.seller_type,
+            documentStatus: farm?.document_status ?? current?.document_status,
+            emailVerified: farm?.email_verified ?? current?.email_verified,
+            phoneVerified: farm?.phone_verified ?? current?.phone_verified
+          });
+
+      await admin
+        .from("farms")
+        .update({
+          facial_verification_status: nextFacialStatus,
+          seller_verification_status: farmNextStatus,
+          seller_verification_reason: normalized.status === "approved" ? null : normalized.decision,
+          seller_verified_at: farmNextStatus === "verified" ? now : null,
+          verification_updated_at: now
+        })
+        .eq("id", membership.farm_id);
+    }));
   }
 
   await admin.from("app_notifications").insert({

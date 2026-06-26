@@ -3,9 +3,11 @@
 import { useState } from "react";
 
 export function DiditVerificationActions({
-  label = "Start Verification"
+  label = "Start Verification",
+  purpose = "seller_facial"
 }: {
   label?: string;
+  purpose?: "seller_facial" | "representative";
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +18,9 @@ export function DiditVerificationActions({
 
     try {
       const response = await fetch("/api/verification/start", {
-        method: "POST"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purpose })
       });
       const payload = await response.json();
 

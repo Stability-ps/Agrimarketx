@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createDiditVerificationSession } from "@/lib/didit";
 import { createClient } from "@/lib/supabase/server";
 
 function go(path: string): never {
@@ -216,7 +217,7 @@ export async function updateSellerVerification(formData: FormData) {
   const action = textValue(formData.get("action")) ?? "save";
   const requestedStatus = textValue(formData.get("status"));
   const reason = textValue(formData.get("reason"));
-  const sellerAccountRole = textValue(formData.get("sellerAccountRole")) ?? "farmer_seller";
+  const sellerAccountRole = textValue(formData.get("sellerAccountRole")) ?? "individual_seller";
 
   if (!farmId) {
     go("/admin/verifications");
@@ -224,13 +225,23 @@ export async function updateSellerVerification(formData: FormData) {
 
   const { data: farm } = await supabase
     .from("farms")
-    .select("name, email_verified, phone_verified, seller_verification_status")
+    .select("name, email_verified, phone_verified, seller_verification_status, seller_type, document_status, facial_verification_status, owner_name")
     .eq("id", farmId)
     .maybeSingle();
 
-  const status = action === "reset_override"
-    ? (farm?.email_verified && farm?.phone_verified ? "verified" : "pending_review")
-    : requestedStatus;
+  const status = action === "approve_documents"
+    ? "documents_approved_pending_facial_verification"
+    : action === "request_more_information"
+      ? "more_information_required"
+      : action === "manual_verify"
+        ? "verified"
+        : action === "reset_facial"
+          ? (farm?.seller_type === "business" ? "documents_approved_pending_facial_verification" : "pending")
+          : action === "generate_didit" || action === "resend_didit" || action === "request_representative_verification"
+            ? (farm?.seller_verification_status ?? "pending")
+          : action === "reset_override"
+            ? "pending"
+            : requestedStatus;
 
   if (!status) {
     go("/admin/verifications");
@@ -249,6 +260,28 @@ export async function updateSellerVerification(formData: FormData) {
     suspended_at: status === "suspended" ? now : null,
     rejected_at: status === "rejected" ? now : null
   };
+
+  if (action === "approve_documents") {
+    updatePayload.document_status = "approved";
+    updatePayload.verification_email_sent_at = now;
+    updatePayload.facial_email_sent_at = now;
+    updatePayload.verification_email_status = "queued";
+    updatePayload.facial_email_status = "queued";
+  }
+
+  if (action === "request_more_information") {
+    updatePayload.document_status = "more_information_required";
+  }
+
+  if (action === "manual_verify") {
+    updatePayload.document_status = farm?.seller_type === "business" ? "approved" : farm?.document_status;
+    updatePayload.facial_verification_status = "verified";
+  }
+
+  if (action === "reset_facial") {
+    updatePayload.facial_verification_status = "not_started";
+    updatePayload.seller_verified_at = null;
+  }
 
   if (action === "reset_override") {
     updatePayload.admin_verification_override = false;
@@ -277,16 +310,63 @@ export async function updateSellerVerification(formData: FormData) {
 
   if (ownerUserId) {
     const admin = createAdminClient();
+    let diditSessionId: string | null = null;
+    let diditUrl: string | null = null;
+
+    if (action === "generate_didit" || action === "resend_didit" || action === "request_representative_verification") {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", ownerUserId)
+        .maybeSingle();
+      const session = await createDiditVerificationSession({
+        userId: ownerUserId,
+        email: profile?.email,
+        fullName: profile?.full_name ?? farm?.owner_name
+      });
+      diditSessionId = session.sessionId;
+      diditUrl = session.verificationUrl;
+
+      if (action === "request_representative_verification") {
+        updatePayload.representative_verification_required = true;
+        updatePayload.representative_verification_status = "pending";
+        updatePayload.didit_session_id = diditSessionId;
+      } else {
+        updatePayload.facial_didit_session_id = diditSessionId;
+        updatePayload.facial_verification_status = "pending";
+        updatePayload.seller_verification_status = "facial_verification_pending";
+      }
+
+      await admin.from("farms").update(updatePayload).eq("id", farmId);
+    }
+
     await admin.from("seller_verifications").upsert({
       user_id: ownerUserId,
       seller_verification_status: status,
       admin_verification_override: action !== "reset_override",
       verification_rejection_reason: updatePayload.verification_rejection_reason,
       account_role: sellerAccountRole,
+      seller_type: farm?.seller_type ?? "individual",
+      document_status: updatePayload.document_status ?? farm?.document_status ?? "not_submitted",
+      facial_verification_status: updatePayload.facial_verification_status ?? farm?.facial_verification_status ?? "not_started",
+      facial_didit_session_id: diditSessionId,
       verification_updated_at: now,
       suspended_at: updatePayload.suspended_at,
-      rejected_at: updatePayload.rejected_at
+      rejected_at: updatePayload.rejected_at,
+      representative_verification_required: updatePayload.representative_verification_required,
+      representative_verification_status: updatePayload.representative_verification_status
     }, { onConflict: "user_id" });
+
+    if (diditUrl) {
+      await admin.from("app_notifications").insert({
+        user_id: ownerUserId,
+        farm_id: farmId,
+        title: action === "request_representative_verification" ? "Representative verification requested" : "Complete facial verification",
+        body: "AgriMarketX has generated your secure Didit verification link.",
+        type: "verification",
+        link_url: diditUrl
+      });
+    }
   }
 
   const statusLabel = status.replace(/_/g, " ");
