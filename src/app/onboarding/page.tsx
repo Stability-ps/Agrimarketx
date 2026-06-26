@@ -19,6 +19,12 @@ export default async function OnboardingPage({
     .select("full_name, phone")
     .eq("id", user?.id ?? "")
     .maybeSingle();
+  const { data: verification } = await supabase
+    .from("seller_verifications")
+    .select("seller_type")
+    .eq("user_id", user?.id ?? "")
+    .maybeSingle();
+  const resolvedSellerType = sellerType === "business" || verification?.seller_type === "business" ? "business" : "individual";
 
   return (
     <main className="page-shell px-4 py-8 lg:px-8">
@@ -30,7 +36,7 @@ export default async function OnboardingPage({
         <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           <form action={createFarm} className="panel space-y-4 p-5">
             <input type="hidden" name="next" value={next} />
-            <input type="hidden" name="sellerType" value={sellerType === "business" ? "business" : "individual"} />
+            <input type="hidden" name="sellerType" value={resolvedSellerType} />
             {message ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
                 {message}
@@ -39,7 +45,7 @@ export default async function OnboardingPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-md border border-green-100 bg-green-50 p-3 sm:col-span-2">
                 <p className="text-sm font-bold text-brand-green">
-                  Seller type: {sellerType === "business" ? "Business Seller" : "Individual Seller"}
+                  Seller type: {resolvedSellerType === "business" ? "Business Seller" : "Individual Seller"}
                 </p>
                 <p className="mt-1 text-xs text-slate-600">This only controls verification. You can sell any approved marketplace category.</p>
               </div>
@@ -71,12 +77,18 @@ export default async function OnboardingPage({
                 <input className="field mt-1" name="sizeHectares" placeholder="450 hectares" />
               </label>
               <label>
-                <span className="text-sm font-semibold">Farm type</span>
+                <span className="text-sm font-semibold">Farm / business type</span>
                 <select className="field mt-1" name="farmType">
-                  <option>Mixed livestock</option>
-                  <option>Commercial breeding</option>
-                  <option>Smallholder</option>
-                  <option>Feedlot</option>
+                  <option>Mixed farm</option>
+                  <option>Livestock farm</option>
+                  <option>Crop farm</option>
+                  <option>Feed supplier</option>
+                  <option>Equipment dealer</option>
+                  <option>Vehicle dealer</option>
+                  <option>Infrastructure supplier</option>
+                  <option>Agricultural services</option>
+                  <option>Veterinary / animal health</option>
+                  <option>Other agricultural business</option>
                 </select>
               </label>
               <label>
@@ -89,19 +101,20 @@ export default async function OnboardingPage({
               <div className="grid gap-2 sm:grid-cols-2">
                 {supplyCategories.map(([value, label]) => (
                   <label key={value} className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={value === "livestock"} />
+                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={value === "all"} />
                     {label}
                   </label>
                 ))}
               </div>
-              <p className="mt-2 text-xs font-semibold text-slate-500">Used for buyer request matching, farm profiles and seller recommendations.</p>
+              <p className="mt-2 text-xs font-semibold text-slate-500">Used for buyer request matching, farm profiles and recommendations. This does not limit what you can sell.</p>
             </div>
             <div>
-              <p className="mb-2 text-sm font-semibold">Livestock types</p>
+              <p className="mb-1 text-sm font-semibold">Livestock types, if applicable</p>
+              <p className="mb-2 text-xs text-slate-500">Optional. Leave these unchecked if you only sell crops, feed, equipment, vehicles, infrastructure or services.</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {defaultSpecies.map((species) => (
                   <label key={species.name} className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                    <input type="checkbox" name="species" value={species.name} defaultChecked={["Cattle", "Goats", "Sheep"].includes(species.name)} />
+                    <input type="checkbox" name="species" value={species.name} />
                     {species.name}
                   </label>
                 ))}
@@ -112,7 +125,10 @@ export default async function OnboardingPage({
             </button>
           </form>
           <aside className="panel p-5">
-            <h2 className="font-bold">Livestock species settings</h2>
+            <h2 className="font-bold">Setup adapts to your business</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              AgriMarketX supports livestock, feed, crops, equipment, vehicles, infrastructure and services. Livestock settings are only used when you add animals later.
+            </p>
             <div className="mt-4 space-y-3">
               {defaultSpecies.slice(0, 5).map((species) => (
                 <div key={species.name} className="rounded-md bg-slate-50 p-3">

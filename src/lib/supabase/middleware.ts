@@ -113,7 +113,9 @@ export async function updateSession(request: NextRequest) {
   if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = accountTypeSelected
-      ? accountRole === "seller"
+      ? accountRole === "admin" || accountRole === "super_admin"
+        ? "/admin"
+        : accountRole === "seller"
         ? "/dashboard"
         : "/marketplace"
       : "/account/type";

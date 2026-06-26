@@ -3,12 +3,14 @@ import {
   Building2,
   CheckCircle2,
   CircleHelp,
+  CreditCard,
   FileText,
   FileSearch,
   Heart,
   Info,
   LogOut,
   MessageCircle,
+  Shield,
   Settings,
   Store
 } from "lucide-react";
@@ -35,24 +37,38 @@ export default async function AccountPage() {
         .eq("id", farm.id)
         .maybeSingle()
     : { data: null };
+  const { data: verification } = await supabase
+    .from("seller_verifications")
+    .select("seller_verification_status, status, email_verified, phone_verified, seller_type")
+    .eq("user_id", user?.id ?? "")
+    .maybeSingle();
   const { count: farmCount } = await supabase
     .from("farm_members")
     .select("id", { count: "exact", head: true })
     .eq("user_id", user?.id ?? "");
-  const checks = [
-    ["Profile photo added", Boolean(profile?.avatar_url)],
-    ["Phone number added", Boolean(profile?.phone)],
-    ["WhatsApp number added", Boolean(profile?.whatsapp_number)],
-    ["At least one farm added", Boolean(farmCount && farmCount > 0)],
-    ["Farm logo/photo added", Boolean(farmRecord?.logo_url || farmRecord?.photo_url)],
-    ["Farm location added", Boolean(farmRecord?.location || farmRecord?.province || farmRecord?.country)],
-    ["Seller verification submitted", farmRecord?.seller_verification_status !== "not_started"]
-  ] as const;
-  const completed = checks.filter(([, done]) => done);
-  const percentage = Math.round((completed.length / checks.length) * 100);
-  const verified = farmRecord?.seller_verification_status === "verified";
   const accountRole = String(profile?.account_role ?? "buyer").replace("_", " ");
   const isSeller = ["seller", "admin", "super_admin"].includes(String(profile?.account_role ?? "buyer"));
+  const sellerStatus = verification?.seller_verification_status ?? farmRecord?.seller_verification_status ?? "not_started";
+  const checks = isSeller
+    ? ([
+        ["Profile photo added", Boolean(profile?.avatar_url)],
+        ["Phone number added", Boolean(profile?.phone)],
+        ["WhatsApp number added", Boolean(profile?.whatsapp_number)],
+        ["At least one farm added", Boolean(farmCount && farmCount > 0)],
+        ["Farm logo/photo added", Boolean(farmRecord?.logo_url || farmRecord?.photo_url)],
+        ["Farm location added", Boolean(farmRecord?.location || farmRecord?.province || farmRecord?.country)],
+        ["Seller verification started", sellerStatus !== "not_started"]
+      ] as const)
+    : ([
+        ["Profile photo added", Boolean(profile?.avatar_url)],
+        ["Phone number added", Boolean(profile?.phone)],
+        ["WhatsApp number added", Boolean(profile?.whatsapp_number)],
+        ["Email address added", Boolean(profile?.email || user?.email)],
+        ["Marketplace account ready", true]
+      ] as const);
+  const completed = checks.filter(([, done]) => done);
+  const percentage = Math.round((completed.length / checks.length) * 100);
+  const verified = sellerStatus === "verified" || sellerStatus === "approved";
 
   return (
     <AppShell>
@@ -77,7 +93,7 @@ export default async function AccountPage() {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-sm text-slate-600">Complete your profile to build trust with buyers.</p>
+              <p className="mt-1 text-sm text-slate-600">{isSeller ? "Complete your seller profile to build trust with buyers." : "Complete your buyer profile for saved listings, messages and support."}</p>
             </div>
             <span className="text-2xl font-bold text-brand-green">{percentage}%</span>
           </div>
@@ -94,25 +110,43 @@ export default async function AccountPage() {
           <a href="/settings" className="primary-button mt-4 inline-flex">Complete Profile</a>
         </section>
 
+        <div>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Profile & security</h2>
+          <AccountMenuGroup>
+            <AccountMenuItem href="/settings" icon={Settings} title="Profile settings" description="Edit your photo, name, phone, WhatsApp and farm details." />
+            <AccountMenuItem href="/account/preferences" icon={Shield} title="Security and preferences" description="Notification, privacy and account preferences." />
+            <AccountMenuItem href="/account/type" icon={Store} title="Change account type" description="Switch between buyer-only, individual seller and business seller modes." />
+          </AccountMenuGroup>
+        </div>
+
+        <div>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Seller & farm tools</h2>
         <AccountMenuGroup>
           <AccountMenuItem href={isSeller || farm ? "/settings#my-farms" : "/account/type"} icon={Building2} title="My Farms" description={isSeller || farm ? "Switch farms, add a farm and edit farm details." : "Start selling by creating your first farm profile."} />
-          <AccountMenuItem href="/account/listings" icon={Store} title="My Listings" description={isSeller || farm ? "View and manage listings you are selling." : "Start selling before creating listings."} />
-          <AccountMenuItem href="/account/saved" icon={Heart} title="Saved Listings" description="Listings and farms you saved." />
+          <AccountMenuItem href={isSeller || farm ? "/account/listings" : "/account/type"} icon={Store} title="My Listings" description={isSeller || farm ? "View and manage listings you are selling." : "Choose Manage my farm / Sell before creating listings."} />
           <AccountMenuItem href={isSeller || farm ? "/seller/verification" : "/account/type"} icon={CheckCircle2} title="Seller Verification" description={isSeller || farm ? "Verify your identity with Didit and track seller trust status." : "Available after you create a seller farm profile."} />
+          <AccountMenuItem href="/subscription" icon={CreditCard} title="Subscription" description="View plan limits and subscription settings." />
         </AccountMenuGroup>
+        </div>
 
+        <div>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Marketplace activity</h2>
         <AccountMenuGroup>
+          <AccountMenuItem href="/account/saved" icon={Heart} title="Saved Listings" description="Listings and farms you saved." />
           <AccountMenuItem href="/account/requests" icon={FileSearch} title="My Requests" description="Buyer requests and seller responses." />
           <AccountMenuItem href="/account/messages" icon={MessageCircle} title="Messages" description="Buyer and seller conversations." />
           <AccountMenuItem href="/account/notifications" icon={Bell} title="Notifications" description="Alerts for listings, approvals and messages." />
-          <AccountMenuItem href="/account/preferences" icon={Settings} title="Preferences" description="Choose which alerts the app should send." />
         </AccountMenuGroup>
+        </div>
 
+        <div>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Help & platform info</h2>
         <AccountMenuGroup>
           <AccountMenuItem href="/account/support" icon={CircleHelp} title="Support" description="Help centre, safety advice and problem reports." />
           <AccountMenuItem href="/account/legal" icon={FileText} title="Legal" description="Terms, privacy and marketplace rules." />
           <AccountMenuItem href="/account/about" icon={Info} title="About AgriMarketX" description="Company info, posting rules, blog and business tools." />
         </AccountMenuGroup>
+        </div>
 
         <form action="/auth/signout" method="post" className="overflow-hidden rounded-md border border-slate-200 bg-white">
           <button className="flex w-full items-center gap-3 px-4 py-4 text-left transition hover:bg-red-50" type="submit">

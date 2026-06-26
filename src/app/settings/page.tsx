@@ -170,13 +170,14 @@ export default async function SettingsPage({
               <LocationFields townName="location" showApproximate={false} />
               <input className="field" name="country" placeholder="Country" defaultValue="South Africa" />
             </div>
-            <input className="field" name="farmType" placeholder="Farm type, e.g. Mixed livestock" />
+            <input className="field" name="farmType" placeholder="Farm / business type, e.g. Mixed farm, feed supplier, equipment dealer" />
             <div className="grid gap-2">
               <p className="text-sm font-semibold">What do you sell or offer?</p>
+              <p className="text-xs text-slate-500">Choose all that fit your farm or business. This helps matching and recommendations, but does not limit what you can sell.</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {supplyCategories.map(([value, label]) => (
                   <label key={value} className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={value === "livestock"} />
+                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={value === "all"} />
                     {label}
                   </label>
                 ))}
@@ -253,15 +254,16 @@ export default async function SettingsPage({
               <input className="field" name="sizeHectares" defaultValue={farmRecord?.size_hectares ?? ""} placeholder="450" />
             </label>
             <label className="grid gap-1 text-sm font-semibold">
-              Farm type
-              <input className="field" name="farmType" defaultValue={farmRecord?.farm_type ?? ""} placeholder="Mixed livestock" />
+              Farm / business type
+              <input className="field" name="farmType" defaultValue={farmRecord?.farm_type ?? ""} placeholder="Mixed farm, feed supplier, equipment dealer" />
             </label>
             <div className="grid gap-2 md:col-span-2">
               <p className="text-sm font-semibold">What do you sell or offer?</p>
+              <p className="text-xs text-slate-500">Used for farm profile display, buyer request matching and seller recommendations. You can still sell approved items outside these categories.</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {supplyCategories.map(([value, label]) => (
                   <label key={value} className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm">
-                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={(farmRecord?.supply_categories ?? []).includes(value)} />
+                    <input type="checkbox" name="supplyCategories" value={value} defaultChecked={(farmRecord?.supply_categories ?? []).includes(value) || (!(farmRecord?.supply_categories ?? []).length && value === "all")} />
                     {label}
                   </label>
                 ))}

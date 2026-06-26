@@ -20,20 +20,23 @@ function signupError({
   email,
   fullName,
   message,
-  phone
+  phone,
+  sellerType
 }: {
   accountType: string;
   email: string;
   fullName: string;
   message: string;
   phone: string;
+  sellerType: string;
 }) {
   const params = new URLSearchParams({
     accountType,
     email,
     fullName,
     message,
-    phone
+    phone,
+    sellerType
   });
 
   go(`/signup?${params.toString()}`);
@@ -59,44 +62,46 @@ export async function createAccount(formData: FormData) {
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
   const accountType = String(formData.get("accountType") ?? "buyer");
   const accountRole = accountType === "seller" ? "seller" : "buyer";
+  const sellerType = String(formData.get("sellerType") ?? "individual") === "business" ? "business" : "individual";
 
   if (!fullName || !email || !phone || !password || !confirmPassword) {
-    signupError({ accountType, email, fullName, message: "Please complete all fields.", phone });
+    signupError({ accountType, email, fullName, message: "Please complete all fields.", phone, sellerType });
   }
 
   const passwordMessage = validPassword(password);
 
   if (passwordMessage) {
-    signupError({ accountType, email, fullName, message: passwordMessage, phone });
+    signupError({ accountType, email, fullName, message: passwordMessage, phone, sellerType });
   }
 
   if (password !== confirmPassword) {
-    signupError({ accountType, email, fullName, message: "Confirm password must match password.", phone });
+    signupError({ accountType, email, fullName, message: "Confirm password must match password.", phone, sellerType });
   }
 
-  const next = accountRole === "seller" ? "/onboarding" : "/marketplace";
+  const next = accountRole === "seller" ? `/onboarding?sellerType=${sellerType}` : "/marketplace";
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${await getBaseUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+      emailRedirectTo: `${await getBaseUrl()}/auth/callback?authAction=confirm_email&next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}`,
       data: {
         full_name: fullName,
         phone,
         account_role: accountRole,
-        account_type_selected: true
+        account_type_selected: true,
+        seller_type: sellerType
       }
     }
   });
 
   if (error) {
-    signupError({ accountType, email, fullName, message: error.message, phone });
+    signupError({ accountType, email, fullName, message: error.message, phone, sellerType });
   }
 
   if (data.session) {
     go(next);
   }
 
-  go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. Check your email to confirm, then sign in.")}`);
+  go(`/signup/confirm?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. Check your email to confirm, then sign in.")}`);
 }

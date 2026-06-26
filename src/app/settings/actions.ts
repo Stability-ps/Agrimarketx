@@ -7,6 +7,7 @@ import { cleanFileName, isImageFile, publicStorageUrl } from "@/lib/files";
 import { ACTIVE_FARM_COOKIE } from "@/lib/farm-cookie";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { normalizeSupplyCategories } from "@/lib/supply-categories";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function go(path: string): never {
@@ -226,6 +227,7 @@ export async function createAdditionalFarm(formData: FormData) {
 
   const farmName = text(formData, "farmName");
   const country = nullableText(formData, "country");
+  const admin = createAdminClient();
 
   if (!farmName) {
     go(`/settings?message=${encodeURIComponent("New farm name is required.")}`);
@@ -238,6 +240,13 @@ export async function createAdditionalFarm(formData: FormData) {
     account_role: "seller",
     account_type_selected: true
   });
+
+  const { data: existingVerification } = await admin
+    .from("seller_verifications")
+    .select("seller_type")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const sellerType = existingVerification?.seller_type === "business" ? "business" : "individual";
 
   let { data: company, error: companyError } = await supabase
     .from("companies")
@@ -280,6 +289,8 @@ export async function createAdditionalFarm(formData: FormData) {
       province: nullableText(formData, "province"),
       country,
       farm_type: nullableText(formData, "farmType"),
+      seller_type: sellerType,
+      seller_account_role: sellerType === "business" ? "business_seller" : "individual_seller",
       supply_categories: normalizeSupplyCategories(formData.getAll("supplyCategories").map((item) => String(item))),
       facilities: splitList(text(formData, "facilities"))
     })
@@ -301,6 +312,13 @@ export async function createAdditionalFarm(formData: FormData) {
   }
 
   await setActiveFarmCookie(newFarm.id);
+  await admin.from("seller_verifications").upsert({
+    user_id: user.id,
+    seller_type: sellerType,
+    account_role: sellerType === "business" ? "business_seller" : "individual_seller",
+    email_verified: Boolean(user.email_confirmed_at || user.confirmed_at),
+    email_verified_at: user.email_confirmed_at ?? user.confirmed_at ?? null
+  }, { onConflict: "user_id" });
   revalidatePath("/");
   go(`/settings?message=${encodeURIComponent("New farm created and selected.")}`);
 }

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BadgeDollarSign,
+  ArrowLeft,
   Bell,
   CalendarHeart,
   ClipboardList,
@@ -277,7 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-slate-500">Livestock management and marketplace</p>
+              <p className="text-sm font-medium text-slate-500">Agricultural marketplace and farm management</p>
               <h1 className="text-xl font-bold tracking-tight text-brand-navy">
                 {isAdminPortal ? "AgriMarketX admin portal" : accountRole === "seller" ? "AgriMarketX farm console" : "AgriMarketX marketplace"}
               </h1>
@@ -336,19 +337,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 export function PageHeader({
   title,
   description,
-  action
+  action,
+  backHref
 }: {
   title: string;
   description: string;
   action?: React.ReactNode;
+  backHref?: string;
 }) {
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    window.location.href = backHref ?? "/account";
+  }
+
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-brand-navy">{title}</h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-600">{description}</p>
+    <div className="mb-6">
+      <button type="button" onClick={goBack} className="mb-3 inline-flex items-center gap-2 text-sm font-bold text-brand-green hover:underline">
+        <ArrowLeft size={16} />
+        Back
+      </button>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-brand-navy">{title}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">{description}</p>
+        </div>
+        {action}
       </div>
-      {action}
     </div>
   );
 }

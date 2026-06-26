@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { ShoppingCart, Sprout, UserPlus } from "lucide-react";
-import { resendConfirmationEmail, signInWithGoogle } from "@/app/login/actions";
+import { signInWithGoogle } from "@/app/login/actions";
 import { createAccount } from "./actions";
 
 export default async function SignupPage({
   searchParams
 }: {
-  searchParams: Promise<{ accountType?: string; email?: string; fullName?: string; message?: string; phone?: string }>;
+  searchParams: Promise<{ accountType?: string; email?: string; fullName?: string; message?: string; phone?: string; sellerType?: string }>;
 }) {
-  const { accountType = "buyer", email = "", fullName = "", message, phone = "" } = await searchParams;
+  const { accountType = "buyer", email = "", fullName = "", message, phone = "", sellerType = "individual" } = await searchParams;
   const selectedAccountType = accountType === "seller" ? "seller" : "buyer";
+  const selectedSellerType = sellerType === "business" ? "business" : "individual";
 
   return (
     <main className="page-shell min-h-screen px-4 py-8 lg:px-8">
@@ -78,12 +79,30 @@ export default async function SignupPage({
               </div>
             </div>
 
+            <div>
+              <p className="mb-2 text-sm font-semibold text-slate-700">If selling, choose seller type</p>
+              <p className="mb-2 text-xs text-slate-500">This only controls verification. It does not limit what you can sell.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer gap-3 rounded-md border border-slate-200 p-4 transition hover:border-brand-green">
+                  <input type="radio" name="sellerType" value="individual" defaultChecked={selectedSellerType === "individual"} />
+                  <span>
+                    <span className="block font-bold">Individual Seller</span>
+                    <span className="mt-1 block text-sm text-slate-600">Farmers, breeders, traders and individuals.</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer gap-3 rounded-md border border-slate-200 p-4 transition hover:border-brand-green">
+                  <input type="radio" name="sellerType" value="business" defaultChecked={selectedSellerType === "business"} />
+                  <span>
+                    <span className="block font-bold">Business Seller</span>
+                    <span className="mt-1 block text-sm text-slate-600">Feed stores, dealers, co-ops, clinics and suppliers.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <button className="primary-button w-full gap-2" type="submit">
               <UserPlus size={18} />
               Create account
-            </button>
-            <button className="w-full text-sm font-semibold text-slate-600 hover:text-brand-green hover:underline" type="submit" formAction={resendConfirmationEmail} formNoValidate>
-              Resend confirmation email
             </button>
           </form>
 

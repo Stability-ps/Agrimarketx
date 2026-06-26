@@ -18,7 +18,7 @@ function go(path: string): never {
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/marketplace");
+  const requestedNext = String(formData.get("next") ?? "").trim();
 
   if (!email || !password) {
     go(`/login?message=${encodeURIComponent("Enter your email and password.")}`);
@@ -31,6 +31,11 @@ export async function signInWithEmail(formData: FormData) {
   });
 
   if (error) {
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes("email") && (lowerMessage.includes("confirm") || lowerMessage.includes("verified"))) {
+      go(`/login?email=${encodeURIComponent(email)}&unconfirmed=1&message=${encodeURIComponent("Your email address has not been confirmed yet. Please check your inbox and confirm your email before logging in.")}`);
+    }
+
     go(`/signup?email=${encodeURIComponent(email)}&message=${encodeURIComponent("We could not sign you in. Create an account with this email or check your password.")}`);
   }
 
@@ -39,7 +44,7 @@ export async function signInWithEmail(formData: FormData) {
   } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("account_type_selected")
+    .select("account_type_selected, account_role")
     .eq("id", user?.id ?? "")
     .maybeSingle();
 
@@ -47,7 +52,20 @@ export async function signInWithEmail(formData: FormData) {
     go("/account/type");
   }
 
-  go(next);
+  const role = profile?.account_role ?? "buyer";
+  const defaultRoute = role === "admin" || role === "super_admin"
+    ? "/admin"
+    : role === "seller"
+      ? "/dashboard"
+      : "/marketplace";
+  const safeNext = requestedNext.startsWith("/")
+    && !requestedNext.startsWith("/login")
+    && !requestedNext.startsWith("/signup")
+    && requestedNext !== "/onboarding"
+    ? requestedNext
+    : defaultRoute;
+
+  go(safeNext);
 }
 
 export async function requestPasswordReset(formData: FormData) {
@@ -71,7 +89,7 @@ export async function requestPasswordReset(formData: FormData) {
 
 export async function resendConfirmationEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
-  const next = String(formData.get("next") ?? "/marketplace");
+  const next = String(formData.get("next") ?? "/login");
 
   if (!email) {
     go(`/login?message=${encodeURIComponent("Enter your email address first, then choose Resend confirmation email.")}`);
@@ -82,7 +100,7 @@ export async function resendConfirmationEmail(formData: FormData) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${await getBaseUrl()}/auth/callback?next=${encodeURIComponent(next)}`
+      emailRedirectTo: `${await getBaseUrl()}/auth/callback?authAction=confirm_email&next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}`
     }
   });
 
@@ -90,7 +108,7 @@ export async function resendConfirmationEmail(formData: FormData) {
     go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent(error.message)}`);
   }
 
-  go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Confirmation email resent. Please check your inbox and spam folder.")}`);
+  go(`/signup/confirm?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Confirmation email resent. Please check your inbox and spam folder.")}`);
 }
 
 export async function signInWithGoogle(formData: FormData) {
@@ -113,5 +131,5 @@ export async function signInWithGoogle(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect("/login?message=You have been logged out.");
 }

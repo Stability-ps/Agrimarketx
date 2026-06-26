@@ -5,9 +5,9 @@ import { requestPasswordReset, resendConfirmationEmail, signInWithEmail, signInW
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ email?: string; message?: string; next?: string }>;
+  searchParams: Promise<{ email?: string; message?: string; next?: string; unconfirmed?: string }>;
 }) {
-  const { email = "", message, next = "/marketplace" } = await searchParams;
+  const { email = "", message, next = "", unconfirmed } = await searchParams;
 
   return (
     <main className="page-shell grid min-h-screen place-items-center px-4 py-10">
@@ -27,7 +27,7 @@ export default async function LoginPage({
             </div>
           ) : null}
           <form action={signInWithEmail} className="space-y-4">
-            <input type="hidden" name="next" value={next} />
+            {next ? <input type="hidden" name="next" value={next} /> : null}
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">Email address</span>
               <input className="field mt-1" name="email" type="email" placeholder="farmer@example.com" defaultValue={email} required />
@@ -43,9 +43,11 @@ export default async function LoginPage({
             <button className="w-full text-sm font-semibold text-brand-green hover:underline" type="submit" formAction={requestPasswordReset} formNoValidate>
               Forgot password
             </button>
-            <button className="w-full text-sm font-semibold text-slate-600 hover:text-brand-green hover:underline" type="submit" formAction={resendConfirmationEmail} formNoValidate>
-              Resend confirmation email
-            </button>
+            {unconfirmed === "1" ? (
+              <button className="w-full text-sm font-semibold text-slate-600 hover:text-brand-green hover:underline" type="submit" formAction={resendConfirmationEmail} formNoValidate>
+                Resend confirmation email
+              </button>
+            ) : null}
           </form>
           <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-slate-400">
             <div className="h-px flex-1 bg-slate-200" />
@@ -53,7 +55,7 @@ export default async function LoginPage({
             <div className="h-px flex-1 bg-slate-200" />
           </div>
           <form action={signInWithGoogle}>
-            <input type="hidden" name="next" value={next} />
+            {next ? <input type="hidden" name="next" value={next} /> : null}
             <button className="secondary-button w-full" type="submit">Continue with Google</button>
           </form>
           <Link href={`/signup${email ? `?email=${encodeURIComponent(email)}` : ""}` as never} className="secondary-button mt-3 w-full">
