@@ -71,11 +71,23 @@ const categoryFields: Record<MarketplaceCategory, { name: string; label: string;
   ]
 };
 
+const subcategoryLabels: Record<MarketplaceCategory, string> = {
+  livestock: "Animal Type",
+  livestock_herds: "Herd Type",
+  feed_inputs: "Feed Type",
+  crops_produce: "Produce Type",
+  farm_equipment: "Equipment Type",
+  vehicles: "Vehicle Type",
+  infrastructure: "Infrastructure Type",
+  agri_services: "Service Type"
+};
+
 export function UniversalListingForm() {
   const [category, setCategory] = useState<MarketplaceCategory>("livestock");
   const subcategories = useMemo(() => marketplaceSubcategories(category), [category]);
   const fields = categoryFields[category];
   const photoLimit = marketplacePhotoLimit(category);
+  const subcategoryLabel = subcategoryLabels[category];
 
   return (
     <>
@@ -88,9 +100,9 @@ export function UniversalListingForm() {
         </select>
       </label>
       <label>
-        <span className="text-sm font-semibold">Subcategory</span>
+        <span className="text-sm font-semibold">{subcategoryLabel}</span>
         <select className="field mt-1" name="subcategory" key={category} defaultValue="" required>
-          <option value="">Choose subcategory</option>
+          <option value="">Choose {subcategoryLabel.toLowerCase()}</option>
           {subcategories.map((subcategory) => (
             <option key={subcategory.slug} value={subcategory.slug}>{subcategory.label}</option>
           ))}

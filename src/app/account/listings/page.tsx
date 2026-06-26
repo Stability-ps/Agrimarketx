@@ -50,7 +50,9 @@ export default async function MyListingsPage({
       `)
       .eq("seller_farm_id", farm.id);
 
-    if (status !== "all") {
+    if (status === "all") {
+      query = query.not("status", "in", "(removed,rejected,suspended)");
+    } else {
       query = query.eq("status", status);
     }
 

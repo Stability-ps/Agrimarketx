@@ -136,5 +136,23 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (user && isSellerRoute && accountRole === "seller") {
+    const { data: membership } = await supabase
+      .from("farm_members")
+      .select("farms(seller_verification_status)")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    const farm = Array.isArray(membership?.farms) ? membership?.farms[0] : membership?.farms;
+
+    if (farm?.seller_verification_status === "rejected" || farm?.seller_verification_status === "suspended") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/seller/verification";
+      url.searchParams.set("next", pathname);
+      url.searchParams.set("message", "Your seller account has been suspended or rejected. Please contact AgriMarketX Support.");
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }

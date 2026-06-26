@@ -1,51 +1,67 @@
 import { redirect } from "next/navigation";
-import { identityTrustScore, type SellerVerificationStatus } from "@/lib/didit";
+import { automaticSellerStatus, sellerTrustScore, type FarmSellerStatus } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 
 export type SellerVerificationSummary = {
-  status: SellerVerificationStatus;
-  identityVerified: boolean;
+  status: FarmSellerStatus;
   emailVerified: boolean;
   phoneVerified: boolean;
   trustScore: number;
+  adminOverride: boolean;
+  rejectionReason: string | null;
+  sellerAccountRole: string;
   diditSessionId: string | null;
   decision: string | null;
 };
 
 const defaultSummary: SellerVerificationSummary = {
   status: "not_started",
-  identityVerified: false,
   emailVerified: false,
   phoneVerified: false,
   trustScore: 0,
+  adminOverride: false,
+  rejectionReason: null,
+  sellerAccountRole: "farmer_seller",
   diditSessionId: null,
   decision: null
 };
 
 export async function getSellerVerificationSummary(userId: string): Promise<SellerVerificationSummary> {
   const supabase = await createClient();
-  const [{ data }, { data: userData }] = await Promise.all([
+  const [{ data }, { data: userData }, { data: farmRows }] = await Promise.all([
     supabase
     .from("seller_verifications")
-      .select("status, didit_session_id, decision, email_verified, phone_verified")
+      .select("status, didit_session_id, decision, email_verified, phone_verified, seller_verification_status, admin_verification_override, verification_rejection_reason, account_role")
     .eq("user_id", userId)
       .maybeSingle(),
-    supabase.auth.getUser()
+    supabase.auth.getUser(),
+    supabase
+      .from("farm_members")
+      .select("farms(email_verified, phone_verified, seller_verification_status, admin_verification_override, verification_rejection_reason, seller_account_role)")
+      .eq("user_id", userId)
+      .limit(1)
   ]);
 
   const authEmailVerified = Boolean(userData.user?.email_confirmed_at || userData.user?.confirmed_at);
+  const farm = Array.isArray(farmRows?.[0]?.farms) ? farmRows?.[0]?.farms[0] : farmRows?.[0]?.farms;
 
-  const status = (data?.status ?? "not_started") as SellerVerificationStatus;
-  const identityVerified = status === "approved";
-  const emailVerified = Boolean(data?.email_verified) || authEmailVerified;
-  const phoneVerified = Boolean(data?.phone_verified);
+  const emailVerified = Boolean(farm?.email_verified) || Boolean(data?.email_verified) || authEmailVerified;
+  const phoneVerified = Boolean(farm?.phone_verified) || Boolean(data?.phone_verified);
+  const adminOverride = Boolean(farm?.admin_verification_override) || Boolean(data?.admin_verification_override);
+  const status = (
+    farm?.seller_verification_status ??
+    data?.seller_verification_status ??
+    automaticSellerStatus(emailVerified, phoneVerified)
+  ) as FarmSellerStatus;
 
   return {
     status,
-    identityVerified,
     emailVerified,
     phoneVerified,
-    trustScore: identityTrustScore(status) + (emailVerified ? 20 : 0) + (phoneVerified ? 20 : 0),
+    trustScore: sellerTrustScore(emailVerified, phoneVerified),
+    adminOverride,
+    rejectionReason: farm?.verification_rejection_reason ?? data?.verification_rejection_reason ?? null,
+    sellerAccountRole: farm?.seller_account_role ?? data?.account_role ?? "farmer_seller",
     diditSessionId: data?.didit_session_id ?? null,
     decision: data?.decision ?? null
   };
@@ -77,8 +93,12 @@ export async function requireApprovedSellerVerification(nextPath: string) {
   }
 
   const verification = await getSellerVerificationSummary(user.id);
-  if (!verification.identityVerified || !verification.emailVerified || !verification.phoneVerified) {
-    redirect(`/seller/verification?next=${encodeURIComponent(nextPath)}&message=${encodeURIComponent("Complete identity, email and mobile verification before selling on AgriMarketX.")}` as never);
+  if (verification.status === "rejected" || verification.status === "suspended") {
+    redirect(`/seller/verification?next=${encodeURIComponent(nextPath)}&message=${encodeURIComponent("Your seller account has been suspended or rejected. Please contact AgriMarketX Support.")}` as never);
+  }
+
+  if (!verification.emailVerified || !verification.phoneVerified || verification.status !== "verified") {
+    redirect(`/seller/verification?next=${encodeURIComponent(nextPath)}&message=${encodeURIComponent("Verify your email and mobile number before selling on AgriMarketX.")}` as never);
   }
 }
 
@@ -103,7 +123,11 @@ export async function requireVerifiedSellerForWantedRequest() {
   }
 
   const verification = await getSellerVerificationSummary(user.id);
-  if (!verification.identityVerified || !verification.emailVerified || !verification.phoneVerified) {
-    redirect(`/seller/verification?next=${encodeURIComponent("/marketplace/wanted")}&message=${encodeURIComponent("Complete identity, email and mobile verification before publishing marketplace requests.")}` as never);
+  if (verification.status === "rejected" || verification.status === "suspended") {
+    redirect(`/seller/verification?next=${encodeURIComponent("/marketplace/wanted")}&message=${encodeURIComponent("Your seller account has been suspended or rejected. Please contact AgriMarketX Support.")}` as never);
+  }
+
+  if (!verification.emailVerified || !verification.phoneVerified || verification.status !== "verified") {
+    redirect(`/seller/verification?next=${encodeURIComponent("/marketplace/wanted")}&message=${encodeURIComponent("Verify your email and mobile number before publishing marketplace requests.")}` as never);
   }
 }

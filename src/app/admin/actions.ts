@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function go(path: string): never {
@@ -212,31 +213,80 @@ export async function removeReportedListing(formData: FormData) {
 export async function updateSellerVerification(formData: FormData) {
   const supabase = await createClient();
   const farmId = textValue(formData.get("farmId"));
-  const status = textValue(formData.get("status"));
+  const action = textValue(formData.get("action")) ?? "save";
+  const requestedStatus = textValue(formData.get("status"));
   const reason = textValue(formData.get("reason"));
+  const sellerAccountRole = textValue(formData.get("sellerAccountRole")) ?? "farmer_seller";
 
-  if (!farmId || !status) {
+  if (!farmId) {
     go("/admin/verifications");
   }
 
   const { data: farm } = await supabase
     .from("farms")
-    .select("name")
+    .select("name, email_verified, phone_verified, seller_verification_status")
     .eq("id", farmId)
     .maybeSingle();
 
-  const verifiedAt = status === "verified" ? new Date().toISOString() : null;
+  const status = action === "reset_override"
+    ? (farm?.email_verified && farm?.phone_verified ? "verified" : "pending_review")
+    : requestedStatus;
+
+  if (!status) {
+    go("/admin/verifications");
+  }
+
+  const now = new Date().toISOString();
+  const verifiedAt = status === "verified" ? now : null;
+  const updatePayload: Record<string, unknown> = {
+    seller_verification_status: status,
+    seller_verification_reason: reason,
+    verification_rejection_reason: status === "rejected" || status === "suspended" ? reason : null,
+    seller_account_role: sellerAccountRole,
+    verification_updated_at: now,
+    seller_verified_at: verifiedAt,
+    admin_verification_override: action !== "reset_override",
+    suspended_at: status === "suspended" ? now : null,
+    rejected_at: status === "rejected" ? now : null
+  };
+
+  if (action === "reset_override") {
+    updatePayload.admin_verification_override = false;
+    updatePayload.seller_verification_reason = null;
+    updatePayload.verification_rejection_reason = null;
+    updatePayload.suspended_at = null;
+    updatePayload.rejected_at = null;
+  }
+
   const { error } = await supabase
     .from("farms")
-    .update({
-      seller_verification_status: status,
-      seller_verification_reason: reason,
-      seller_verified_at: verifiedAt
-    })
+    .update(updatePayload)
     .eq("id", farmId);
 
   if (error) {
     go(`/admin/verifications?message=${encodeURIComponent(error.message)}`);
+  }
+
+  const { data: members } = await supabase
+    .from("farm_members")
+    .select("user_id")
+    .eq("farm_id", farmId)
+    .eq("role", "owner")
+    .limit(1);
+  const ownerUserId = members?.[0]?.user_id;
+
+  if (ownerUserId) {
+    const admin = createAdminClient();
+    await admin.from("seller_verifications").upsert({
+      user_id: ownerUserId,
+      seller_verification_status: status,
+      admin_verification_override: action !== "reset_override",
+      verification_rejection_reason: updatePayload.verification_rejection_reason,
+      account_role: sellerAccountRole,
+      verification_updated_at: now,
+      suspended_at: updatePayload.suspended_at,
+      rejected_at: updatePayload.rejected_at
+    }, { onConflict: "user_id" });
   }
 
   const statusLabel = status.replace(/_/g, " ");
@@ -251,6 +301,7 @@ export async function updateSellerVerification(formData: FormData) {
   revalidatePath("/admin/verifications");
   revalidatePath("/marketplace");
   revalidatePath("/account");
+  revalidatePath("/seller/verification");
   revalidatePath("/account/notifications");
   go(`/admin/verifications?message=${encodeURIComponent("Seller verification updated.")}`);
 }

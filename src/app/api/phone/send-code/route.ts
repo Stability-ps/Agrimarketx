@@ -3,6 +3,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanPhoneNumber, sendTwilioVerifyCode } from "@/lib/twilio-verify";
 
+async function syncFarmVerificationFlags(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  emailVerified: boolean,
+  emailVerifiedAt: string | null,
+  phoneVerified: boolean,
+  phoneVerifiedAt: string | null
+) {
+  const { data: memberships } = await admin
+    .from("farm_members")
+    .select("farm_id, farms(admin_verification_override)")
+    .eq("user_id", userId);
+
+  const farmIds = (memberships ?? []).map((membership: any) => membership.farm_id).filter(Boolean);
+  if (farmIds.length === 0) {
+    return;
+  }
+
+  await admin
+    .from("farms")
+    .update({
+      email_verified: emailVerified,
+      email_verified_at: emailVerifiedAt,
+      phone_verified: phoneVerified,
+      phone_verified_at: phoneVerifiedAt,
+      seller_verification_status: phoneVerified && emailVerified ? "verified" : "pending_review",
+      verification_updated_at: new Date().toISOString()
+    })
+    .in("id", farmIds)
+    .eq("admin_verification_override", false);
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -43,6 +75,14 @@ export async function POST(request: Request) {
     }, {
       onConflict: "user_id"
     });
+    await syncFarmVerificationFlags(
+      admin,
+      user.id,
+      Boolean(user.email_confirmed_at || user.confirmed_at),
+      user.email_confirmed_at ?? user.confirmed_at ?? null,
+      false,
+      null
+    );
 
     return NextResponse.json({ ok: true, phoneNumber: result.phoneNumber });
   } catch (error) {

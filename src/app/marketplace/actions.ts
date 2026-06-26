@@ -186,14 +186,29 @@ export async function createUniversalMarketplaceListing(formData: FormData) {
   const price = moneyValue(formData.get("price"));
   const category = listingCategory(formData.get("category"));
   const subcategory = listingSubcategory(category, formData.get("subcategory"));
+  const clientRequestId = optionalString(formData.get("clientRequestId"));
 
   if (!title || !price) {
     go(`/marketplace/create?message=${encodeURIComponent("Enter a listing title and price.")}`);
   }
 
+  if (clientRequestId) {
+    const { data: existingListing } = await supabase
+      .from("marketplace_listings")
+      .select("id")
+      .eq("seller_farm_id", farm.id)
+      .eq("client_request_id", clientRequestId)
+      .maybeSingle();
+
+    if (existingListing?.id) {
+      go(`/account/listings?message=${encodeURIComponent("Listing already submitted.")}`);
+    }
+  }
+
   const contact = await registeredSellerContact(supabase, farm.id);
   const { data: listing, error } = await supabase.from("marketplace_listings").insert({
     seller_farm_id: farm.id,
+    client_request_id: clientRequestId,
     animal_id: null,
     category,
     subcategory,
@@ -210,6 +225,10 @@ export async function createUniversalMarketplaceListing(formData: FormData) {
     price_negotiable: String(formData.get("priceNegotiable") ?? "true") === "true",
     status: "under_review"
   }).select("id").single();
+
+  if (error?.code === "23505") {
+    go(`/account/listings?message=${encodeURIComponent("Listing already submitted.")}`);
+  }
 
   if (error || !listing) {
     go(`/marketplace/create?message=${encodeURIComponent(error?.message ?? "Could not create listing.")}`);

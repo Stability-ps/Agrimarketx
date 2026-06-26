@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { FormSubmitButton } from "@/components/FormSubmitButton";
 import { LocationFields } from "@/components/LocationFields";
+import { StableFormToken } from "@/components/StableFormToken";
 import { UniversalListingForm } from "@/components/UniversalListingForm";
 import { createUniversalMarketplaceListing } from "@/app/marketplace/actions";
 
@@ -25,6 +27,7 @@ export default async function CreateMarketplaceListingPage({
       ) : null}
       <section className="panel p-5">
         <form action={createUniversalMarketplaceListing} className="grid gap-3 sm:grid-cols-2">
+          <StableFormToken />
           <UniversalListingForm />
           <label>
             <span className="text-sm font-semibold">Price</span>
@@ -54,7 +57,7 @@ export default async function CreateMarketplaceListingPage({
             <span className="text-sm font-semibold">Description</span>
             <textarea className="field mt-1 min-h-28" name="description" placeholder="Add condition, collection, delivery, packaging or seller terms." />
           </label>
-          <button className="primary-button sm:w-fit" type="submit">Submit listing</button>
+          <FormSubmitButton label="Submit listing" pendingLabel="Saving listing..." className="primary-button sm:w-fit" />
         </form>
       </section>
     </AppShell>

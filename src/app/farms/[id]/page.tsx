@@ -4,6 +4,7 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
 import { supplyCategoryLabel } from "@/lib/supply-categories";
+import { sellerAccountRoleLabel, sellerStatusLabel, sellerTrustScore, sellerVerificationBadge } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 import { toggleFarmFollow } from "@/app/account/actions";
 
@@ -22,7 +23,7 @@ export default async function PublicFarmProfilePage({
   } = await supabase.auth.getUser();
   const { data: farm } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, description, location, province, country, owner_name, owner_phone, supply_categories, seller_verification_status")
+    .select("id, name, logo_url, photo_url, description, location, province, country, owner_name, owner_phone, supply_categories, seller_verification_status, seller_account_role, email_verified, phone_verified, seller_verified_at, verification_updated_at")
     .eq("id", id)
     .maybeSingle();
   const { data: listings } = await supabase
@@ -34,21 +35,6 @@ export default async function PublicFarmProfilePage({
   const { data: follow } = user
     ? await supabase.from("farm_followers").select("id").eq("farm_id", id).eq("user_id", user.id).maybeSingle()
     : { data: null };
-  const { data: ownerMember } = await supabase
-    .from("farm_members")
-    .select("user_id")
-    .eq("farm_id", id)
-    .eq("role", "owner")
-    .limit(1)
-    .maybeSingle();
-  const { data: sellerVerification } = ownerMember?.user_id
-    ? await supabase
-        .from("seller_verifications")
-        .select("status, email_verified, phone_verified")
-        .eq("user_id", ownerMember.user_id)
-        .maybeSingle()
-    : { data: null };
-
   if (!farm) {
     return (
       <AppShell>
@@ -57,11 +43,10 @@ export default async function PublicFarmProfilePage({
     );
   }
 
-  const verified = farm.seller_verification_status === "verified";
-  const identityVerified = sellerVerification?.status === "approved" || verified;
-  const emailVerified = Boolean(sellerVerification?.email_verified);
-  const phoneVerified = Boolean(sellerVerification?.phone_verified);
-  const trustScore = (identityVerified ? 60 : 0) + (emailVerified ? 20 : 0) + (phoneVerified ? 20 : 0);
+  const badge = sellerVerificationBadge(farm.seller_verification_status, farm.seller_account_role);
+  const emailVerified = Boolean(farm.email_verified);
+  const phoneVerified = Boolean(farm.phone_verified);
+  const trustScore = sellerTrustScore(emailVerified, phoneVerified);
   const location = farm.location || [farm.province, farm.country].filter(Boolean).join(", ") || "Location not set";
 
   return (
@@ -80,7 +65,7 @@ export default async function PublicFarmProfilePage({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold">{farm.name}</h2>
-                {identityVerified ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-green-800"><ShieldCheck size={14} /> Identity Verified</span> : null}
+                {badge ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-green-800"><ShieldCheck size={14} /> {badge}</span> : null}
               </div>
               <p className="mt-1 inline-flex items-center gap-1 text-sm text-slate-600"><MapPin size={15} /> {location}</p>
               {(farm.supply_categories ?? []).length > 0 ? (
@@ -98,9 +83,10 @@ export default async function PublicFarmProfilePage({
                   <p className="font-bold">Verified Information</p>
                   <p className="text-sm font-bold text-brand-green">{trustScore} Trust Score</p>
                 </div>
-                <VerifiedInfoRow done={identityVerified} icon={ShieldCheck} label="Identity (SA ID / Passport)" />
+                <VerifiedInfoRow done={farm.seller_verification_status === "verified"} icon={ShieldCheck} label={`Seller Status: ${sellerStatusLabel(farm.seller_verification_status)}`} />
                 <VerifiedInfoRow done={phoneVerified} icon={Phone} label="Mobile Number" />
                 <VerifiedInfoRow done={emailVerified} icon={Mail} label="Email Address" />
+                <p className="mt-2 text-sm font-semibold text-slate-600">Account Role: {sellerAccountRoleLabel(farm.seller_account_role)}</p>
               </div>
             </div>
           </div>

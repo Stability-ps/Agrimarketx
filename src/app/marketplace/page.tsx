@@ -34,6 +34,7 @@ import {
   normalizeMarketplaceCategory
 } from "@/lib/marketplace-categories";
 import { findLocationInSearch, provinceDirectory, provincePreview, stripLocationFromSearch } from "@/lib/provinces";
+import { sellerVerificationBadge } from "@/lib/seller-badges";
 import { createPublicSupabaseClient } from "@/lib/supabase/public-server";
 
 export const revalidate = 60;
@@ -213,7 +214,8 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
   const photo = listingMedia.find((item: any) => item.media_type === "photo" && item.is_primary) ?? listingMedia.find((item: any) => item.media_type === "photo") ?? animalPhotos[0];
   const bucket = listingMedia.includes(photo) ? "farm-assets" : "animal-media";
   const location = [listing.town, listing.province].filter(Boolean).join(", ") || listing.approximate_location || "Location not set";
-  const verified = (Array.isArray(listing.farms) ? listing.farms[0] : listing.farms)?.seller_verification_status === "verified";
+  const farm = Array.isArray(listing.farms) ? listing.farms[0] : listing.farms;
+  const badge = sellerVerificationBadge(farm?.seller_verification_status, farm?.seller_account_role);
   const quickInfo = quickInfoForListing(listing);
   const detailHref = `/marketplace/${listing.id}?returnTo=${encodeURIComponent(returnPath)}`;
 
@@ -228,10 +230,10 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
             <div className="grid h-36 place-items-center bg-green-50 text-sm font-bold text-brand-green">No photo</div>
           )}
         </div>
-        {verified ? (
+        {badge ? (
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand-green px-2 py-1 text-xs font-bold text-white">
             <ShieldCheck size={13} />
-            Verified
+            {badge}
           </span>
         ) : null}
         <div className="absolute right-3 top-3 z-20 flex gap-2">
@@ -315,7 +317,7 @@ export default async function MarketplacePage({
       saved_count,
       animals(animal_code, tag_number, breed, gender, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
       marketplace_listing_media(storage_path, media_type, is_primary, created_at),
-      farms:seller_farm_id(id, name, seller_verification_status)
+      farms:seller_farm_id(id, name, seller_verification_status, seller_account_role)
     `)
     .eq("status", "active");
 
@@ -416,7 +418,7 @@ export default async function MarketplacePage({
   const locationCountObject = Object.fromEntries(locationCounts);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, marketplace_listings(id, status)")
+    .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, marketplace_listings(id, status)")
     .eq("seller_verification_status", "verified")
     .limit(4);
   const featuredFarms = featuredFarmRows ?? [];
