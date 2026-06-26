@@ -12,7 +12,7 @@
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
             <tr>
               <td style="padding:22px 24px;border-bottom:4px solid #2E7D32">
-                <img src="../../public/agrimarketx-email-logo.png" alt="AgriMarketX" style="display:block;width:220px;max-width:100%;height:auto;margin-bottom:8px" />
+                <img src="https://agrimarketx.co.za/agrimarketx-email-logo.png" alt="AgriMarketX" style="display:block;width:220px;max-width:100%;height:auto;margin-bottom:8px" />
                 <div style="font-size:20px;font-weight:800;color:#2E7D32">AgriMarketX</div>
                 <div style="font-size:12px;color:#64748b;margin-top:3px">Manage. Track. Trade.</div>
               </td>

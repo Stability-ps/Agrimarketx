@@ -69,6 +69,30 @@ export async function requestPasswordReset(formData: FormData) {
   go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("If that email exists, a password reset link has been sent.")}`);
 }
 
+export async function resendConfirmationEmail(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const next = String(formData.get("next") ?? "/marketplace");
+
+  if (!email) {
+    go(`/login?message=${encodeURIComponent("Enter your email address first, then choose Resend confirmation email.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: `${await getBaseUrl()}/auth/callback?next=${encodeURIComponent(next)}`
+    }
+  });
+
+  if (error) {
+    go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent(error.message)}`);
+  }
+
+  go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Confirmation email resent. Please check your inbox and spam folder.")}`);
+}
+
 export async function signInWithGoogle(formData: FormData) {
   const next = String(formData.get("next") ?? "/account/type");
   const supabase = await createClient();

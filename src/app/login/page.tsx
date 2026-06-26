@@ -1,6 +1,6 @@
 import { Mail } from "lucide-react";
 import Link from "next/link";
-import { requestPasswordReset, signInWithEmail, signInWithGoogle } from "./actions";
+import { requestPasswordReset, resendConfirmationEmail, signInWithEmail, signInWithGoogle } from "./actions";
 
 export default async function LoginPage({
   searchParams
@@ -42,6 +42,9 @@ export default async function LoginPage({
             </button>
             <button className="w-full text-sm font-semibold text-brand-green hover:underline" type="submit" formAction={requestPasswordReset} formNoValidate>
               Forgot password
+            </button>
+            <button className="w-full text-sm font-semibold text-slate-600 hover:text-brand-green hover:underline" type="submit" formAction={resendConfirmationEmail} formNoValidate>
+              Resend confirmation email
             </button>
           </form>
           <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-slate-400">

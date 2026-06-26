@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ShoppingCart, Sprout, UserPlus } from "lucide-react";
-import { signInWithGoogle } from "@/app/login/actions";
+import { resendConfirmationEmail, signInWithGoogle } from "@/app/login/actions";
 import { createAccount } from "./actions";
 
 export default async function SignupPage({
@@ -81,6 +81,9 @@ export default async function SignupPage({
             <button className="primary-button w-full gap-2" type="submit">
               <UserPlus size={18} />
               Create account
+            </button>
+            <button className="w-full text-sm font-semibold text-slate-600 hover:text-brand-green hover:underline" type="submit" formAction={resendConfirmationEmail} formNoValidate>
+              Resend confirmation email
             </button>
           </form>
 
