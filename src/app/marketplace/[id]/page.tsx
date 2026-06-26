@@ -236,7 +236,7 @@ export default async function MarketplaceListingDetailPage({
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{marketplaceCategoryLabel(listing.category)}</span>
               {marketplaceSubcategoryLabel(listing.category, listing.subcategory) ? <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{marketplaceSubcategoryLabel(listing.category, listing.subcategory)}</span> : null}
-              {verified ? <span className="rounded-full bg-green-50 px-2 py-1 text-brand-green">Verified</span> : null}
+              {verified ? <span className="rounded-full bg-green-50 px-2 py-1 text-brand-green">Identity Verified</span> : null}
               {canSeeStatus ? <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Status: {String(listing.status).replace("_", " ")}</span> : null}
             </div>
             <p className="mt-3 flex items-center gap-1 text-sm text-slate-500"><Calendar size={15} /> Listed {new Date(listing.created_at).toLocaleDateString("en-ZA")}</p>
@@ -272,7 +272,12 @@ export default async function MarketplaceListingDetailPage({
                 <p className="text-sm text-slate-600">{farm?.province || farm?.location || "South Africa"}</p>
               </div>
             </div>
-            {verified ? <p className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-brand-green"><ShieldCheck size={14} /> Verified</p> : null}
+            {verified ? (
+              <div className="mt-3 grid gap-2">
+                <p className="inline-flex w-fit items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-xs font-bold text-brand-green"><ShieldCheck size={14} /> Identity Verified</p>
+                <p className="text-sm font-semibold text-slate-700">Trust Score 20/100</p>
+              </div>
+            ) : null}
             {farm?.id ? <Link href={`/farms/${farm.id}` as never} className="secondary-button mt-4 w-full">View seller profile</Link> : null}
           </section>
 

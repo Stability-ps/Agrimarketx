@@ -13,6 +13,7 @@ import {
   PlusCircle,
   Settings,
   ShoppingBag,
+  ShieldCheck,
   Shuffle,
   UserCircle,
   type LucideIcon
@@ -164,6 +165,7 @@ export function MarketplaceAccountMenu() {
                 <>
                   <MarketplaceMenuLink href="/dashboard" icon={Building2} label="Farm Console" />
                   <MarketplaceMenuLink href="/account/listings" icon={ShoppingBag} label="My Listings" />
+                  <MarketplaceMenuLink href="/seller/verification" icon={ShieldCheck} label="Seller Verification" />
                   <MarketplaceMenuLink href="/account/transfers" icon={Shuffle} label="Transfer Centre" />
                 </>
               ) : null}

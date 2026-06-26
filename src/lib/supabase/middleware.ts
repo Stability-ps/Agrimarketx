@@ -9,7 +9,8 @@ type CookieToSet = {
 
 const loggedInRoutes = [
   "/account",
-  "/onboarding"
+  "/onboarding",
+  "/seller"
 ];
 
 const sellerRoutes = [

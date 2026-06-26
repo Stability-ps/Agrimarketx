@@ -34,12 +34,13 @@ const navItems: { href: Route | string; label: string; icon: typeof Home }[] = [
   { href: "/finance", label: "Finance", icon: BadgeDollarSign },
   { href: "/marketplace", label: "Marketplace", icon: ShoppingCart },
   { href: "/reports", label: "Reports", icon: ClipboardList },
+  { href: "/seller/verification", label: "Seller Verification", icon: ShieldCheck },
   { href: "/subscription", label: "Subscription", icon: CreditCard },
   { href: "/account", label: "Account", icon: UserCircle },
   { href: "/admin", label: "Admin", icon: Settings }
 ];
 
-const sellerOnlyNav = new Set(["/dashboard", "/animals", "/health", "/breeding", "/finance", "/reports", "/subscription"]);
+const sellerOnlyNav = new Set(["/dashboard", "/animals", "/health", "/breeding", "/finance", "/reports", "/seller/verification", "/subscription"]);
 
 const adminNavItems: { href: Route | string; label: string; icon: typeof Home }[] = [
   { href: "/admin", label: "Dashboard", icon: Home },
@@ -313,7 +314,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <Link href="/admin" className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-green">Admin Portal</Link>
                     </>
                   ) : (
-                    <Link href="/dashboard" className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-green">Farm Console</Link>
+                    <>
+                      <Link href="/dashboard" className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-green">Farm Console</Link>
+                      <Link href="/seller/verification" className="block border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-brand-green">Seller Verification</Link>
+                    </>
                   )}
                   <form action="/auth/signout" method="post">
                     <button className="block w-full px-4 py-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50" type="submit">Logout</button>

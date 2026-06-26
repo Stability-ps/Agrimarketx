@@ -98,7 +98,7 @@ export default async function AccountPage() {
           <AccountMenuItem href={isSeller || farm ? "/settings#my-farms" : "/account/type"} icon={Building2} title="My Farms" description={isSeller || farm ? "Switch farms, add a farm and edit farm details." : "Start selling by creating your first farm profile."} />
           <AccountMenuItem href="/account/listings" icon={Store} title="My Listings" description={isSeller || farm ? "View and manage listings you are selling." : "Start selling before creating listings."} />
           <AccountMenuItem href="/account/saved" icon={Heart} title="Saved Listings" description="Listings and farms you saved." />
-          <AccountMenuItem href={isSeller || farm ? "/account/verification" : "/account/type"} icon={CheckCircle2} title="Verification Centre" description={isSeller || farm ? "Submit and track seller verification." : "Available after you create a seller farm profile."} />
+          <AccountMenuItem href={isSeller || farm ? "/seller/verification" : "/account/type"} icon={CheckCircle2} title="Seller Verification" description={isSeller || farm ? "Verify your identity with Didit and track seller trust status." : "Available after you create a seller farm profile."} />
         </AccountMenuGroup>
 
         <AccountMenuGroup>

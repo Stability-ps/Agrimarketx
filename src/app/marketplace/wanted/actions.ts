@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cleanFileName, isImageFile } from "@/lib/files";
 import { marketplaceSubcategories, normalizeMarketplaceCategory } from "@/lib/marketplace-categories";
+import { requireVerifiedSellerForWantedRequest } from "@/lib/seller-verification";
 import { createClient } from "@/lib/supabase/server";
 
 function value(formData: FormData, key: string) {
@@ -64,6 +65,8 @@ export async function createBuyerRequest(formData: FormData) {
   if (!user) {
     go(`/login?next=${encodeURIComponent("/marketplace/wanted")}&message=${encodeURIComponent("Sign in to create a buyer request.")}`);
   }
+
+  await requireVerifiedSellerForWantedRequest();
 
   const title = value(formData, "title");
   const category = normalizeMarketplaceCategory(value(formData, "category"));

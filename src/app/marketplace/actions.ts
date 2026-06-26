@@ -6,6 +6,7 @@ import { cleanFileName, isImageFile } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { marketplacePhotoLimit, marketplaceSubcategories, normalizeMarketplaceCategory } from "@/lib/marketplace-categories";
+import { requireApprovedSellerVerification } from "@/lib/seller-verification";
 
 function go(path: string): never {
   redirect(path as never);
@@ -125,6 +126,7 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
 export async function createMarketplaceListing(formData: FormData) {
   const supabase = await createClient();
   const farm = await getCurrentFarm();
+  await requireApprovedSellerVerification("/marketplace/create");
   const animalId = optionalString(formData.get("animalId"));
   const title = optionalString(formData.get("title"));
   const price = moneyValue(formData.get("price"));
@@ -179,6 +181,7 @@ export async function createMarketplaceListing(formData: FormData) {
 export async function createUniversalMarketplaceListing(formData: FormData) {
   const supabase = await createClient();
   const farm = await getCurrentFarm();
+  await requireApprovedSellerVerification("/marketplace/create");
   const title = optionalString(formData.get("title"));
   const price = moneyValue(formData.get("price"));
   const category = listingCategory(formData.get("category"));
