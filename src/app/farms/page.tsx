@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MapPin, ShieldCheck } from "lucide-react";
 import { MarketplacePageShell } from "@/components/MarketplaceShell";
+import { sellerVerificationBadge } from "@/lib/seller-badges";
 import { supplyCategoryLabel } from "@/lib/supply-categories";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,7 +19,7 @@ export default async function FarmsPage() {
     : { data: null };
   const { data: farms } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, location, province, country, description, supply_categories, seller_verification_status, marketplace_listings(id, status)")
+    .select("id, name, logo_url, photo_url, location, province, country, description, supply_categories, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
     .order("created_at", { ascending: false })
     .limit(60);
 
@@ -42,7 +43,7 @@ export default async function FarmsPage() {
             ? farm.marketplace_listings.filter((listing: any) => listing.status === "active").length
             : 0;
           const location = farm.location || [farm.province, farm.country].filter(Boolean).join(", ") || "South Africa";
-          const verified = farm.seller_verification_status === "verified";
+          const badge = sellerVerificationBadge(farm.seller_verification_status, farm.seller_account_role, farm.seller_type, farm.sponsored_partner);
 
           return (
             <Link key={farm.id} href={`/farms/${farm.id}` as never} className="overflow-hidden rounded-md border border-slate-200 bg-white transition hover:border-brand-green">
@@ -70,8 +71,8 @@ export default async function FarmsPage() {
                   </p>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                  {verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-brand-green"><ShieldCheck size={14} /> Verified</span>
+                  {badge ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-brand-green"><ShieldCheck size={14} /> {badge}</span>
                   ) : null}
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{activeCount} active listings</span>
                 </div>

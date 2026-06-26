@@ -215,7 +215,7 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
   const bucket = listingMedia.includes(photo) ? "farm-assets" : "animal-media";
   const location = [listing.town, listing.province].filter(Boolean).join(", ") || listing.approximate_location || "Location not set";
   const farm = Array.isArray(listing.farms) ? listing.farms[0] : listing.farms;
-  const badge = sellerVerificationBadge(farm?.seller_verification_status, farm?.seller_account_role);
+  const badge = sellerVerificationBadge(farm?.seller_verification_status, farm?.seller_account_role, farm?.seller_type, farm?.sponsored_partner);
   const quickInfo = quickInfoForListing(listing);
   const detailHref = `/marketplace/${listing.id}?returnTo=${encodeURIComponent(returnPath)}`;
 
@@ -317,7 +317,7 @@ export default async function MarketplacePage({
       saved_count,
       animals(animal_code, tag_number, breed, gender, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
       marketplace_listing_media(storage_path, media_type, is_primary, created_at),
-      farms:seller_farm_id(id, name, seller_verification_status, seller_account_role)
+      farms:seller_farm_id(id, name, seller_verification_status, seller_account_role, seller_type, sponsored_partner)
     `)
     .eq("status", "active");
 
@@ -418,7 +418,7 @@ export default async function MarketplacePage({
   const locationCountObject = Object.fromEntries(locationCounts);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, marketplace_listings(id, status)")
+    .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
     .eq("seller_verification_status", "verified")
     .limit(4);
   const featuredFarms = featuredFarmRows ?? [];
@@ -570,20 +570,21 @@ export default async function MarketplacePage({
       <section className="mb-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-brand-navy">Featured Farms</h2>
-            <p className="mt-1 text-sm text-slate-600">Verified farm profiles with active marketplace activity.</p>
+            <h2 className="text-xl font-bold text-brand-navy">Featured Farmers &amp; Sellers</h2>
+            <p className="mt-1 text-sm text-slate-600">Verified farmers and sellers with active marketplace activity.</p>
           </div>
           <Link href="/farms" className="text-sm font-bold text-brand-green">View all</Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {featuredFarms.length === 0 ? (
-            <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600">Verified farms will appear here.</div>
+            <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600">Verified farmers and sellers will appear here.</div>
           ) : null}
           {featuredFarms.map((featuredFarm) => {
             const activeCount = Array.isArray(featuredFarm.marketplace_listings)
               ? featuredFarm.marketplace_listings.filter((listing: any) => listing.status === "active").length
               : 0;
             const locationText = featuredFarm.location || [featuredFarm.province, featuredFarm.country].filter(Boolean).join(", ") || "South Africa";
+            const badge = sellerVerificationBadge(featuredFarm.seller_verification_status, featuredFarm.seller_account_role, featuredFarm.seller_type, featuredFarm.sponsored_partner);
 
             return (
               <Link key={featuredFarm.id} href={`/farms/${featuredFarm.id}` as never} className="overflow-hidden rounded-md border border-slate-200 bg-white transition hover:border-brand-green">
@@ -605,7 +606,7 @@ export default async function MarketplacePage({
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
-                    <span className="rounded-full bg-green-50 px-2 py-1 text-brand-green">Verified Farm</span>
+                    {badge ? <span className="rounded-full bg-green-50 px-2 py-1 text-brand-green">{badge}</span> : null}
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{activeCount} active listings</span>
                   </div>
                 </div>

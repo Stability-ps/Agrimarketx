@@ -4,7 +4,7 @@ import { AppShell, PageHeader } from "@/components/AppShell";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
 import { supplyCategoryLabel } from "@/lib/supply-categories";
-import { sellerAccountRoleLabel, sellerStatusLabel, sellerTrustScore, sellerVerificationBadge } from "@/lib/seller-badges";
+import { sellerAccountRoleLabel, sellerStatusLabel, sellerVerificationBadge, verificationTrustScore } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 import { toggleFarmFollow } from "@/app/account/actions";
 
@@ -23,7 +23,7 @@ export default async function PublicFarmProfilePage({
   } = await supabase.auth.getUser();
   const { data: farm } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, description, location, province, country, owner_name, owner_phone, supply_categories, seller_verification_status, seller_account_role, email_verified, phone_verified, seller_verified_at, verification_updated_at")
+    .select("id, name, logo_url, photo_url, description, location, province, country, owner_name, owner_phone, supply_categories, seller_verification_status, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, email_verified, phone_verified, seller_verified_at, verification_updated_at")
     .eq("id", id)
     .maybeSingle();
   const { data: listings } = await supabase
@@ -43,10 +43,16 @@ export default async function PublicFarmProfilePage({
     );
   }
 
-  const badge = sellerVerificationBadge(farm.seller_verification_status, farm.seller_account_role);
+  const badge = sellerVerificationBadge(farm.seller_verification_status, farm.seller_account_role, farm.seller_type, farm.sponsored_partner);
   const emailVerified = Boolean(farm.email_verified);
   const phoneVerified = Boolean(farm.phone_verified);
-  const trustScore = sellerTrustScore(emailVerified, phoneVerified);
+  const trustScore = verificationTrustScore({
+    emailVerified,
+    phoneVerified,
+    facialVerified: farm.facial_verification_status === "verified",
+    documentsApproved: farm.document_status === "approved",
+    sellerType: farm.seller_type
+  });
   const location = farm.location || [farm.province, farm.country].filter(Boolean).join(", ") || "Location not set";
 
   return (

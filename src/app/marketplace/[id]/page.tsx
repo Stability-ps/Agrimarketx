@@ -8,7 +8,7 @@ import { reportMarketplaceListing, sendGuestMarketplaceMessage, toggleSavedListi
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
 import { marketplaceCategoryLabel, marketplaceSubcategoryLabel } from "@/lib/marketplace-categories";
-import { sellerAccountRoleLabel, sellerStatusLabel, sellerTrustScore, sellerVerificationBadge } from "@/lib/seller-badges";
+import { sellerAccountRoleLabel, sellerStatusLabel, sellerVerificationBadge, verificationTrustScore } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 
 function listingPhotos(listing: any) {
@@ -118,7 +118,7 @@ export default async function MarketplaceListingDetailPage({
       created_at,
       animals(animal_code, passport_id, tag_number, breed, gender, age_category, current_weight_kg, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
       marketplace_listing_media(storage_path, media_type, is_primary, created_at),
-      farms:seller_farm_id(id, name, logo_url, photo_url, province, location, seller_verification_status, seller_account_role, email_verified, phone_verified, seller_verified_at, verification_updated_at)
+      farms:seller_farm_id(id, name, logo_url, photo_url, province, location, seller_verification_status, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, email_verified, phone_verified, seller_verified_at, verification_updated_at)
     `)
     .eq("id", id)
     .maybeSingle();
@@ -189,10 +189,16 @@ export default async function MarketplaceListingDetailPage({
   const photos = listingPhotos(listing);
   const mainPhoto = photos.find((item: any) => item.is_primary) ?? photos[0];
   const location = listing.approximate_location || [listing.town, listing.province].filter(Boolean).join(", ") || "Location not set";
-  const badge = sellerVerificationBadge(farm?.seller_verification_status, farm?.seller_account_role);
+  const badge = sellerVerificationBadge(farm?.seller_verification_status, farm?.seller_account_role, farm?.seller_type, farm?.sponsored_partner);
   const emailVerified = Boolean(farm?.email_verified);
   const phoneVerified = Boolean(farm?.phone_verified);
-  const trustScore = sellerTrustScore(emailVerified, phoneVerified);
+  const trustScore = verificationTrustScore({
+    emailVerified,
+    phoneVerified,
+    facialVerified: farm?.facial_verification_status === "verified",
+    documentsApproved: farm?.document_status === "approved",
+    sellerType: farm?.seller_type
+  });
   const details = detailsForDisplay(listing.listing_details as Record<string, unknown>);
   const canSeeStatus = ["seller", "admin", "super_admin"].includes(profile?.account_role ?? "");
   const backHref = returnTo?.startsWith("/marketplace") ? returnTo : "/marketplace";
