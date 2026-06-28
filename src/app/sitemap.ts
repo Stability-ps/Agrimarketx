@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
     "",
     "/marketplace",
+    "/farm-management",
     "/about",
     "/features",
     "/how-it-works",
@@ -26,7 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${baseUrl}${path}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
-    priority: path === "/marketplace" ? 0.9 : 0.7
+    priority: path === "" ? 1 : path === "/marketplace" ? 0.9 : 0.7
   }));
 
   const provinceRoutes = provinceDirectory.map((province) => ({

@@ -725,11 +725,26 @@ export default async function MarketplacePage({
           );
         })}
       </section>
+      <section className="mt-6 grid gap-4 rounded-md border border-green-100 bg-green-50 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-wide text-brand-green">Sell and manage from one account</p>
+          <h2 className="mt-2 text-2xl font-bold text-brand-navy">Become a seller on AgriMarketX</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-green-950">
+            Create listings, receive buyer requests, manage farm records and build trust with seller verification. The mobile app is planned; for now AgriMarketX works in your browser on phone, tablet and desktop.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href={sellHref as never} className="primary-button">Start Selling</Link>
+          <Link href="/farm-management" className="secondary-button bg-white">Farm Management</Link>
+          <span className="rounded-md border border-green-200 bg-white px-4 py-2 text-sm font-bold text-brand-green">App coming soon</span>
+        </div>
+      </section>
       <footer className="mt-8 border-t border-slate-200 pt-5 text-sm text-slate-600">
         <div className="flex flex-wrap gap-4">
           <Link href="/help-centre" className="font-semibold hover:text-brand-green">Help Centre</Link>
           <Link href="/safety-advice" className="font-semibold hover:text-brand-green">Safety Advice</Link>
           <Link href="/marketplace-rules" className="font-semibold hover:text-brand-green">Marketplace Rules</Link>
+          <Link href="/farm-management" className="font-semibold hover:text-brand-green">Farm Management</Link>
           <Link href="/legal" className="font-semibold hover:text-brand-green">Legal</Link>
           <Link href="/about" className="font-semibold hover:text-brand-green">About AgriMarketX</Link>
           <Link href="/contact" className="font-semibold hover:text-brand-green">Contact</Link>

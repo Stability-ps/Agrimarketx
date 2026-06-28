@@ -2,9 +2,9 @@ import Link from "next/link";
 
 const navItems: { href: string; label: string }[] = [
   { href: "/", label: "Home" },
-  { href: "/features", label: "Features" },
+  { href: "/marketplace", label: "Marketplace" },
+  { href: "/farm-management", label: "Farm Management" },
   { href: "/how-it-works", label: "How It Works" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" }
@@ -38,8 +38,8 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <Link href="/login" className="secondary-button hidden sm:inline-flex">
               Login
             </Link>
-            <Link href="/onboarding" className="primary-button">
-              Start Trial
+            <Link href="/marketplace/create" className="primary-button">
+              Sell
             </Link>
           </div>
         </div>
@@ -66,9 +66,9 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           <div>
             <h3 className="font-bold">Account</h3>
             <div className="mt-3 grid gap-2 text-sm text-slate-600">
-              <Link href="/onboarding" className="hover:text-brand-green">Start Trial</Link>
+              <Link href="/marketplace/create" className="hover:text-brand-green">Sell on AgriMarketX</Link>
               <Link href="/login" className="hover:text-brand-green">Login</Link>
-              <Link href="/dashboard" className="hover:text-brand-green">Dashboard Demo</Link>
+              <Link href="/dashboard" className="hover:text-brand-green">Farm Console</Link>
             </div>
           </div>
           <div className="lg:col-span-3">
@@ -121,10 +121,10 @@ export function MarketingCta() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link href="/onboarding" className="primary-button bg-white text-brand-navy hover:bg-slate-100">
-            Start Trial
+            Start Farm Setup
           </Link>
-          <Link href="/dashboard" className="secondary-button border-white/30 bg-transparent text-white hover:border-white hover:text-white">
-            View Demo
+          <Link href="/marketplace" className="secondary-button border-white/30 bg-transparent text-white hover:border-white hover:text-white">
+            Browse Marketplace
           </Link>
         </div>
       </div>
