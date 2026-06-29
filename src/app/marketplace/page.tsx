@@ -434,10 +434,15 @@ export default async function MarketplacePage({
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
   const featuredListings = (listings ?? []).slice(0, 8);
   const recommendedListings = (listings ?? []).slice(4, 8);
+  const resultLocationLabel = location.trim()
+    || (detectedLocation?.type === "town"
+      ? [detectedLocation.town, detectedLocation.province].filter(Boolean).join(", ")
+      : detectedLocation?.province)
+    || "";
 
   const content = (
     <>
-      <section className="mb-4 overflow-hidden rounded-lg bg-brand-navy text-white shadow-soft lg:mb-5">
+      <section className="mb-4 hidden overflow-hidden rounded-lg bg-brand-navy text-white shadow-soft lg:mb-5 lg:block">
         <div className="bg-[radial-gradient(circle_at_75%_20%,rgba(46,125,50,0.75),transparent_30%),linear-gradient(120deg,#052e16_0%,#0f172a_55%,#1f3b1f_100%)] p-5 sm:p-8 lg:p-10">
           <div className="max-w-2xl">
             <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">The Smart Way to Buy &amp; Sell Agri</h1>
@@ -456,10 +461,21 @@ export default async function MarketplacePage({
         </div>
       ) : null}
 
+      {resultLocationLabel ? (
+        <p className="mb-3 flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 lg:hidden">
+          Results in <span className="font-bold text-brand-green">{resultLocationLabel}</span>
+          <MapPin size={16} className="text-brand-green" />
+        </p>
+      ) : null}
+
       <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} />
 
-      <section id="marketplace-categories" className="scroll-mt-28 mb-5 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
+      <section id="marketplace-categories" className="scroll-mt-28 mb-5 border-b border-slate-200 bg-white pb-5 lg:rounded-md lg:border lg:border-slate-200 lg:p-4 lg:shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold text-brand-navy">Browse Categories</h2>
+          <a href="#marketplace-results" className="text-sm font-bold text-brand-green lg:hidden">See all</a>
+        </div>
+        <div className="grid grid-cols-5 gap-x-1.5 gap-y-3 lg:grid-cols-9 lg:gap-3">
           {categoryShortcuts.map((item) => {
             const Icon = item.icon;
 
@@ -471,16 +487,16 @@ export default async function MarketplacePage({
               <Link
                 key={item.label}
                 href={item.href as never}
-                className={`grid justify-items-center gap-2 rounded-md p-2 text-center text-xs font-bold transition ${
+                className={`grid justify-items-center gap-1 rounded-md p-1 text-center text-[10px] font-bold leading-tight transition sm:p-1.5 sm:text-[11px] lg:gap-2 lg:p-2 lg:text-xs ${
                   item.href.includes(`category=${category}`) && !subcategory
                     ? "bg-brand-green text-white"
                     : "text-brand-navy hover:bg-green-50 hover:text-brand-green"
                 }`}
               >
-                <span className={`grid h-12 w-12 place-items-center rounded-full ${
+                <span className={`grid h-10 w-10 place-items-center rounded-full sm:h-11 sm:w-11 lg:h-12 lg:w-12 ${
                   item.href.includes(`category=${category}`) && !subcategory ? "bg-white/15 text-white" : "bg-green-50 text-brand-green"
                 }`}>
-                  <Icon size={22} />
+                  <Icon size={20} />
                 </span>
                 {item.label}
               </Link>
@@ -489,8 +505,13 @@ export default async function MarketplacePage({
         </div>
       </section>
 
-      <details className="mb-5 rounded-md border border-slate-200 bg-white p-4">
-        <summary className="cursor-pointer font-bold text-brand-navy">Filter listings</summary>
+      <details className="mb-5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
+        <summary className="cursor-pointer list-none font-bold text-brand-navy [&::-webkit-details-marker]:hidden">
+          <span className="flex min-h-10 items-center justify-between gap-3">
+            <span>Filter listings</span>
+            <span className="text-lg text-brand-green">v</span>
+          </span>
+        </summary>
         <form className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
           <select className="field" name="category" defaultValue={category}>
             <option value="all">All categories</option>

@@ -48,12 +48,12 @@ export function MoreCategoriesMenu({ groups }: { groups: MoreCategoryGroup[] }) 
     <div ref={menuRef} className="relative">
       <button
         type="button"
-        className="grid w-full cursor-pointer justify-items-center gap-2 rounded-md p-2 text-center text-xs font-bold text-brand-navy hover:bg-green-50 hover:text-brand-green"
+        className="grid w-full cursor-pointer justify-items-center gap-1 rounded-md p-1 text-center text-[10px] font-bold leading-tight text-brand-navy hover:bg-green-50 hover:text-brand-green sm:p-1.5 sm:text-[11px] lg:gap-2 lg:p-2 lg:text-xs"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-green-50 text-brand-green">
-          <MoreHorizontal size={22} />
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-green-50 text-brand-green sm:h-11 sm:w-11 lg:h-12 lg:w-12">
+          <MoreHorizontal size={20} />
         </span>
         More Categories
       </button>
