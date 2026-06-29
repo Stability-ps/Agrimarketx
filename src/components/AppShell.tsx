@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVE_FARM_COOKIE } from "@/lib/farm-cookie";
+import { MarketplaceBottomNav } from "@/components/MarketplaceBottomNav";
 import { MarketplaceHeader } from "@/components/MarketplaceShell";
 
 const navItems: { href: Route | string; label: string; icon: typeof Home }[] = [
@@ -208,34 +209,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (accountRole === "buyer" && !pathname.startsWith("/admin")) {
     return (
-      <main className="min-h-screen bg-white pb-20 text-brand-navy lg:pb-0">
+      <main className="min-h-screen bg-white pb-28 text-brand-navy dark:bg-slate-950 dark:text-white lg:pb-0">
         <MarketplaceHeader />
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">{children}</div>
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-          {[
-            { href: "/", label: "Home", icon: Home },
-            { href: "/marketplace", label: "Search", icon: ShoppingCart },
-            { href: "/marketplace/create", label: "Sell", icon: ShoppingCart },
-            { href: "/account/notifications", label: "Alerts", icon: Bell },
-            { href: "/account", label: "Account", icon: UserCircle }
-          ].map((item) => {
-            const Icon = item.icon;
-            const active = isNavActive(pathname, String(item.href));
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href as Route}
-                className={`grid min-h-12 place-items-center gap-1 rounded-md text-[11px] font-bold ${
-                  active ? "bg-green-50 text-brand-green" : "text-slate-600 active:bg-green-50 active:text-brand-green"
-                }`}
-              >
-                <Icon size={20} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <MarketplaceBottomNav />
       </main>
     );
   }

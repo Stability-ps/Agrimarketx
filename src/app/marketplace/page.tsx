@@ -17,6 +17,7 @@ import {
   Wheat,
   Wrench
 } from "lucide-react";
+import { FeaturedListingsCarousel } from "@/components/FeaturedListingsCarousel";
 import { MarketplacePageShell } from "@/components/MarketplaceShell";
 import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
@@ -431,13 +432,15 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
+  const featuredListings = (listings ?? []).slice(0, 8);
+  const recommendedListings = (listings ?? []).slice(4, 8);
 
   const content = (
     <>
-      <section className="mb-5 overflow-hidden rounded-lg bg-brand-navy text-white shadow-soft">
-        <div className="bg-[radial-gradient(circle_at_75%_20%,rgba(46,125,50,0.75),transparent_30%),linear-gradient(120deg,#052e16_0%,#0f172a_55%,#1f3b1f_100%)] p-6 sm:p-8 lg:p-10">
+      <section className="mb-4 overflow-hidden rounded-lg bg-brand-navy text-white shadow-soft lg:mb-5">
+        <div className="bg-[radial-gradient(circle_at_75%_20%,rgba(46,125,50,0.75),transparent_30%),linear-gradient(120deg,#052e16_0%,#0f172a_55%,#1f3b1f_100%)] p-5 sm:p-8 lg:p-10">
           <div className="max-w-2xl">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">The Smart Way to Buy &amp; Sell Agri</h1>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">The Smart Way to Buy &amp; Sell Agri</h1>
             <p className="mt-3 max-w-xl text-sm text-green-50 sm:text-base">Livestock, equipment, feed, crops and services. All in one trusted marketplace.</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link href={sellHref as never} className="primary-button bg-green-600 hover:bg-green-700">Sell Your Item</Link>
@@ -453,7 +456,9 @@ export default async function MarketplacePage({
         </div>
       ) : null}
 
-      <section className="mb-5 rounded-md border border-slate-200 bg-white p-4">
+      <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} />
+
+      <section id="marketplace-categories" className="scroll-mt-28 mb-5 rounded-md border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
           {categoryShortcuts.map((item) => {
             const Icon = item.icon;
@@ -647,6 +652,23 @@ export default async function MarketplacePage({
           })}
         </div>
       </section>
+
+      {recommendedListings.length > 0 ? (
+        <section className="mb-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-brand-navy dark:text-white">Recommended Listings</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">More marketplace listings worth checking.</p>
+            </div>
+            <Link href="/marketplace" className="text-sm font-bold text-brand-green">View all</Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {recommendedListings.map((listing) => (
+              <MarketplaceHomeListingCard key={`recommended-${listing.id}`} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-8 rounded-md border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">

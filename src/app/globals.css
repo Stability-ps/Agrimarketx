@@ -23,6 +23,7 @@ body {
   margin: 0;
   background: #ffffff;
   color: #0f172a;
+  padding-bottom: env(safe-area-inset-bottom);
   -webkit-tap-highlight-color: rgba(46, 125, 50, 0.14);
 }
 
@@ -53,4 +54,12 @@ a {
 
 input[type="file"].field {
   @apply py-2;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -3,7 +3,7 @@
   "short_name": "AgriMarketX",
   "description": "Agricultural marketplace and farm management platform for Africa.",
   "id": "/",
-  "start_url": "/?source=pwa",
+  "start_url": "/marketplace?source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "browser"],

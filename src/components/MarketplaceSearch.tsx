@@ -80,6 +80,7 @@ export function MarketplaceSearch({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [recent, setRecent] = useState<string[]>([]);
   const wrapperRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const currentCategory = marketplaceCategories.some(([value]) => value === category) ? category : "all";
   const suggestions = useMemo<Suggestion[]>(
     () =>
@@ -118,6 +119,20 @@ export function MarketplaceSearch({
   useEffect(() => {
     setQuery(q);
   }, [q]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("focus") === "search") {
+      window.setTimeout(() => {
+        inputRef.current?.focus();
+        setOpen(true);
+      }, 120);
+    }
+  }, []);
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
@@ -262,6 +277,7 @@ export function MarketplaceSearch({
 
   return (
     <form
+      id="marketplace-search"
       ref={wrapperRef}
       action="/marketplace"
       className="relative flex min-w-0 max-w-full rounded-xl border border-slate-200 bg-white shadow-sm transition focus-within:border-brand-green focus-within:ring-2 focus-within:ring-green-100"
@@ -270,6 +286,7 @@ export function MarketplaceSearch({
       <input type="hidden" name="category" value={currentCategory} disabled={currentCategory === "all"} />
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
       <input
+        ref={inputRef}
         className="h-12 min-w-0 flex-1 rounded-l-xl bg-transparent pl-11 pr-2 text-sm outline-none placeholder:text-slate-400 sm:h-14 sm:pl-12 sm:pr-3 sm:text-base"
         name="q"
         placeholder="Search livestock, feed, equipment, crops, services..."

@@ -1,8 +1,9 @@
-const CACHE_NAME = "agrimarketx-shell-v1";
+const CACHE_NAME = "agrimarketx-shell-v2";
 const SAFE_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",
   "/agrimarketx-logo.png",
+  "/splash/apple-splash-1170x2532.png",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
   "/icons/maskable-512x512.png"

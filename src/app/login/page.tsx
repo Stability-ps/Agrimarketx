@@ -10,13 +10,13 @@ export default async function LoginPage({
   const { email = "", message, next = "", unconfirmed } = await searchParams;
 
   return (
-    <main className="page-shell grid min-h-screen place-items-center px-4 py-10">
+    <main className="page-shell grid min-h-screen place-items-start px-4 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:place-items-center sm:py-10">
       <section className="w-full max-w-md">
-        <div className="mb-8 text-center">
+        <div className="mb-4 text-center sm:mb-8">
           <img
             src="/agrimarketx-logo.png"
             alt="AgriMarketX"
-            className="mx-auto h-auto w-72 max-w-full"
+            className="mx-auto h-auto w-48 max-w-full sm:w-72"
           />
           <p className="mt-2 text-sm text-slate-600">Agricultural marketplace, farm records and trading tools for Africa.</p>
         </div>
