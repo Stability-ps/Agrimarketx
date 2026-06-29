@@ -458,7 +458,7 @@ export default async function MarketplacePage({
 
       <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} />
 
-      <section id="marketplace-categories" className="scroll-mt-28 mb-5 rounded-md border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4">
+      <section id="marketplace-categories" className="scroll-mt-28 mb-5 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
           {categoryShortcuts.map((item) => {
             const Icon = item.icon;
@@ -657,8 +657,8 @@ export default async function MarketplacePage({
         <section className="mb-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold text-brand-navy dark:text-white">Recommended Listings</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">More marketplace listings worth checking.</p>
+              <h2 className="text-xl font-bold text-brand-navy">Recommended Listings</h2>
+              <p className="mt-1 text-sm text-slate-600">More marketplace listings worth checking.</p>
             </div>
             <Link href="/marketplace" className="text-sm font-bold text-brand-green">View all</Link>
           </div>

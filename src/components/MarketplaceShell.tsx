@@ -13,7 +13,7 @@ type MarketplaceHeaderProps = {
 
 export function MarketplaceHeader({ q = "", category = "all", subcategory = "", locationCounts = {} }: MarketplaceHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:pt-0">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
       <div className="mx-auto grid max-w-7xl min-w-0 gap-2 px-3 py-2 sm:px-4 lg:grid-cols-[190px_minmax(0,1fr)_auto] lg:items-center lg:gap-3 lg:px-8 lg:py-3">
         <div className="flex min-w-0 items-center justify-between gap-2 lg:block">
           <Link href="/marketplace" className="flex min-w-0 items-center gap-3">
@@ -21,7 +21,7 @@ export function MarketplaceHeader({ q = "", category = "all", subcategory = "", 
           </Link>
           <Link
             href="#marketplace-categories"
-            className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-brand-green shadow-sm transition active:scale-95 dark:border-slate-700 dark:bg-slate-900 lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-brand-green shadow-sm transition active:scale-95 lg:hidden"
             aria-label="Browse categories"
           >
             <Grid3X3 size={20} />
@@ -53,7 +53,7 @@ export function MarketplacePageShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white pb-28 text-brand-navy dark:bg-slate-950 dark:text-white lg:pb-0">
+    <main className="min-h-screen overflow-x-hidden bg-white pb-28 text-brand-navy lg:pb-0">
       <MarketplaceHeader q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} />
       <div className="mx-auto max-w-7xl min-w-0 px-3 py-3 sm:px-4 lg:px-8 lg:py-5">{children}</div>
       <MarketplaceBottomNav />

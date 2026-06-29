@@ -209,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (accountRole === "buyer" && !pathname.startsWith("/admin")) {
     return (
-      <main className="min-h-screen bg-white pb-28 text-brand-navy dark:bg-slate-950 dark:text-white lg:pb-0">
+      <main className="min-h-screen bg-white pb-28 text-brand-navy lg:pb-0">
         <MarketplaceHeader />
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">{children}</div>
         <MarketplaceBottomNav />

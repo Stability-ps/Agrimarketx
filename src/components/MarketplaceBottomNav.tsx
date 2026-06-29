@@ -51,7 +51,7 @@ export function MarketplaceBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden"
       aria-label="Marketplace primary navigation"
     >
       <div className="relative mx-auto grid max-w-md grid-cols-5 items-end gap-1">
@@ -64,7 +64,7 @@ export function MarketplaceBottomNav() {
               key={item.label}
               href={item.href as Route}
               className={`grid min-h-14 touch-manipulation place-items-center gap-1 rounded-lg px-1 text-[11px] font-bold transition active:scale-95 ${
-                active ? "bg-green-50 text-brand-green dark:bg-green-950/50" : "text-slate-600 active:bg-green-50 active:text-brand-green dark:text-slate-300"
+                active ? "bg-green-50 text-brand-green" : "text-slate-600 active:bg-green-50 active:text-brand-green"
               }`}
             >
               <Icon size={21} />
@@ -91,7 +91,7 @@ export function MarketplaceBottomNav() {
               key={item.label}
               href={item.href as Route}
               className={`grid min-h-14 touch-manipulation place-items-center gap-1 rounded-lg px-1 text-[11px] font-bold transition active:scale-95 ${
-                active ? "bg-green-50 text-brand-green dark:bg-green-950/50" : "text-slate-600 active:bg-green-50 active:text-brand-green dark:text-slate-300"
+                active ? "bg-green-50 text-brand-green" : "text-slate-600 active:bg-green-50 active:text-brand-green"
               }`}
             >
               <Icon size={21} />

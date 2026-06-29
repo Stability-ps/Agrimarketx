@@ -94,15 +94,15 @@ export function FeaturedListingsCarousel({
   }
 
   return (
-    <section className="mb-5 overflow-hidden rounded-xl border border-green-100 bg-gradient-to-br from-green-50 via-white to-amber-50 p-4 shadow-soft dark:border-green-900/60 dark:from-slate-950 dark:via-slate-950 dark:to-green-950/30">
+    <section className="mb-5 overflow-hidden rounded-xl border border-green-100 bg-gradient-to-br from-[#F8F9FA] via-white to-green-50 p-4 shadow-soft">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+          <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
             <Sparkles size={13} />
             Featured
           </p>
-          <h2 className="mt-2 text-xl font-bold text-brand-navy dark:text-white">Featured Listings</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Premium marketplace picks from verified sellers.</p>
+          <h2 className="mt-2 text-xl font-bold text-brand-navy">Featured Listings</h2>
+          <p className="mt-1 text-sm text-slate-600">Premium marketplace picks from verified sellers.</p>
         </div>
         <Link href="/marketplace?featured=1" className="hidden text-sm font-bold text-brand-green sm:block">View all</Link>
       </div>
@@ -126,14 +126,14 @@ export function FeaturedListingsCarousel({
             <article
               key={listing.id}
               data-featured-card
-              className="group relative min-w-[82%] snap-start overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_45px_rgba(46,125,50,0.12)] ring-1 ring-green-100 transition duration-300 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_22px_55px_rgba(46,125,50,0.18)] dark:border-amber-300/30 dark:bg-slate-900 dark:ring-green-900/60 sm:min-w-[45%] lg:min-w-[31%] xl:min-w-[24%]"
+              className="group relative min-w-[82%] snap-start overflow-hidden rounded-xl border border-amber-200 bg-white shadow-[0_18px_45px_rgba(46,125,50,0.12)] ring-1 ring-green-100 transition duration-300 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_22px_55px_rgba(46,125,50,0.18)] sm:min-w-[45%] lg:min-w-[31%] xl:min-w-[24%]"
             >
               <Link href={detailHref as Route} className="absolute inset-0 z-10" aria-label={`Open ${listing.title}`} />
               <div className="relative">
                 {imageUrl ? (
                   <img src={imageUrl} alt={listing.title} className="h-44 w-full object-cover" loading={index < 2 ? "eager" : "lazy"} decoding="async" />
                 ) : (
-                  <div className="grid h-44 place-items-center bg-green-50 text-sm font-bold text-brand-green dark:bg-green-950/40">Featured listing</div>
+                  <div className="grid h-44 place-items-center bg-green-50 text-sm font-bold text-brand-green">Featured listing</div>
                 )}
                 <span className="absolute left-3 top-3 z-20 rounded-r-full bg-amber-400 px-3 py-1 text-xs font-black uppercase tracking-wide text-amber-950 shadow-sm">
                   Featured
@@ -148,12 +148,12 @@ export function FeaturedListingsCarousel({
                 </div>
               </div>
               <div className="relative p-4">
-                <p className="line-clamp-2 font-bold text-brand-navy group-hover:text-brand-green dark:text-white">{listing.title}</p>
-                <p className="mt-2 flex min-w-0 items-center gap-1 text-sm text-slate-600 dark:text-slate-300">
+                <p className="line-clamp-2 font-bold text-brand-navy group-hover:text-brand-green">{listing.title}</p>
+                <p className="mt-2 flex min-w-0 items-center gap-1 text-sm text-slate-600">
                   <MapPin size={14} className="shrink-0" />
                   <span className="truncate">{location}</span>
                 </p>
-                <p className="mt-2 line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{marketplaceCategoryLabel(listing.category)}</p>
+                <p className="mt-2 line-clamp-1 text-sm text-slate-500">{marketplaceCategoryLabel(listing.category)}</p>
                 <p className="mt-3 text-xl font-black text-brand-green">{formatRand(listing.price)}</p>
               </div>
             </article>
