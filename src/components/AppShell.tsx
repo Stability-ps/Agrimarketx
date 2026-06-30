@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   BadgeDollarSign,
   ArrowLeft,
@@ -210,9 +210,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (accountRole === "buyer" && !pathname.startsWith("/admin")) {
     return (
       <main className="min-h-screen bg-white pb-28 text-brand-navy lg:pb-0">
-        <MarketplaceHeader />
+        <Suspense fallback={null}>
+          <MarketplaceHeader />
+        </Suspense>
         <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8">{children}</div>
-        <MarketplaceBottomNav />
+        <Suspense fallback={null}>
+          <MarketplaceBottomNav />
+        </Suspense>
       </main>
     );
   }

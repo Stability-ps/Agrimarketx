@@ -24,6 +24,7 @@ import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
+import { findKnownLocation, haversineDistanceKm, listingCoordinates, parseCoordinate, parseRadiusKm } from "@/lib/location-distance";
 import {
   marketplaceCategories,
   marketplaceCategoryLabel,
@@ -75,6 +76,8 @@ const marketplaceListingSelect = `
   province,
   town,
   approximate_location,
+  latitude,
+  longitude,
   price_negotiable,
   category,
   subcategory,
@@ -160,6 +163,19 @@ function listingCountKey(category: string | null | undefined, subcategory?: stri
 function pageNumber(value: string | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+}
+
+function searchRadius(value: string) {
+  const match = value.match(/\bwithin\s+(\d{1,3})\s*km\b/i);
+  return match?.[1] ?? null;
+}
+
+function stripNearbySearchTerms(value: string) {
+  return value
+    .replace(/\bwithin\s+\d{1,3}\s*km\b/gi, " ")
+    .replace(/\bnear\s+me\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function quickInfoForListing(listing: any) {
@@ -310,23 +326,45 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
 export default async function MarketplacePage({
   searchParams
 }: {
-  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; sex?: string; price?: string; contact?: string; page?: string }>;
+  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; lat?: string; lng?: string; radius?: string; sex?: string; price?: string; contact?: string; page?: string }>;
 }) {
   const params = await searchParams;
-  const { message, q = "", subcategory = "", location = "", sex = "all", price = "all", contact = "" } = params;
+  const { message, q = "", subcategory = "", location = "", lat = "", lng = "", radius = "", sex = "all", price = "all", contact = "" } = params;
   const currentPage = pageNumber(params.page);
   const offset = (currentPage - 1) * pageSize;
   const category = params.category && params.category !== "all" ? normalizeMarketplaceCategory(params.category) : "all";
   const detectedLocation = findLocationInSearch(q);
-  const searchWithoutLocation = stripLocationFromSearch(q, detectedLocation);
+  const radiusFromQuery = searchRadius(q);
+  const selectedRadius = radius || radiusFromQuery || "all";
+  const searchWithoutLocation = stripNearbySearchTerms(stripLocationFromSearch(q, detectedLocation));
   const hasSearch = Boolean(q.trim());
   const hasTextSearch = Boolean(searchWithoutLocation.trim());
+  const latitude = parseCoordinate(lat);
+  const longitude = parseCoordinate(lng);
+  const radiusKm = parseRadiusKm(selectedRadius);
+  const detectedKnownLocation = detectedLocation?.type === "town"
+    ? findKnownLocation(detectedLocation.town, detectedLocation.province)
+    : detectedLocation?.type === "province"
+      ? findKnownLocation(null, detectedLocation.province)
+      : null;
+  const manualKnownLocation = findKnownLocation(location, null);
+  const nearbyCenter = latitude !== null && longitude !== null
+    ? { latitude, longitude }
+    : manualKnownLocation
+      ? { latitude: manualKnownLocation.latitude, longitude: manualKnownLocation.longitude }
+      : detectedKnownLocation
+        ? { latitude: detectedKnownLocation.latitude, longitude: detectedKnownLocation.longitude }
+        : null;
+  const hasNearbyFilter = Boolean(nearbyCenter && radiusKm);
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
   const returnParams = new URLSearchParams();
   if (q) returnParams.set("q", q);
   if (category && category !== "all") returnParams.set("category", category);
   if (subcategory) returnParams.set("subcategory", subcategory);
   if (location) returnParams.set("location", location);
+  if (lat) returnParams.set("lat", lat);
+  if (lng) returnParams.set("lng", lng);
+  if (selectedRadius && selectedRadius !== "all") returnParams.set("radius", selectedRadius);
   if (sex && sex !== "all") returnParams.set("sex", sex);
   if (price && price !== "all") returnParams.set("price", price);
   const returnPath = `/marketplace${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
@@ -345,12 +383,12 @@ export default async function MarketplacePage({
     listingQuery = listingQuery.eq("subcategory", subcategory.trim());
   }
 
-  if (location.trim()) {
+  if (location.trim() && !hasNearbyFilter) {
     const place = location.trim().replace(/[%_]/g, "");
     listingQuery = listingQuery.or(`province.ilike.%${place}%,town.ilike.%${place}%,approximate_location.ilike.%${place}%`);
   }
 
-  if (!location.trim() && detectedLocation) {
+  if (!location.trim() && detectedLocation && !hasNearbyFilter) {
     const locationTerms = detectedLocation.type === "province"
       ? [detectedLocation.province]
       : [detectedLocation.town, ...detectedLocation.aliases, detectedLocation.province].filter(Boolean);
@@ -379,10 +417,16 @@ export default async function MarketplacePage({
 
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
-    .range(hasSearch ? 0 : offset, hasSearch ? 119 : offset + pageSize - 1);
-  const exactSearchListings = hasTextSearch
-    ? (rawListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
+    .range(hasSearch || hasNearbyFilter ? 0 : offset, hasSearch || hasNearbyFilter ? 499 : offset + pageSize - 1);
+  const nearbyListings = hasNearbyFilter && nearbyCenter && radiusKm
+    ? (rawListings ?? []).filter((listing) => {
+        const coords = listingCoordinates(listing);
+        return coords ? haversineDistanceKm(nearbyCenter, coords) <= radiusKm : false;
+      })
     : rawListings;
+  const exactSearchListings = hasTextSearch
+    ? (nearbyListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
+    : nearbyListings;
   const relatedCategoryMatches = hasTextSearch && (exactSearchListings ?? []).length === 0
     ? relatedMarketplaceCategories(searchWithoutLocation)
     : [];
@@ -391,17 +435,17 @@ export default async function MarketplacePage({
     ? (exactSearchListings ?? []).length > 0
       ? exactSearchListings
       : relatedCategoryMatches.length > 0
-        ? (rawListings ?? []).filter((listing) => relatedCategorySet.has(normalizeMarketplaceCategory(listing.category)) || searchMatchesListing(listing, searchWithoutLocation))
+        ? (nearbyListings ?? []).filter((listing) => relatedCategorySet.has(normalizeMarketplaceCategory(listing.category)) || searchMatchesListing(listing, searchWithoutLocation))
         : []
-    : rawListings;
+    : nearbyListings;
   const listings = sex === "all"
     ? searchFilteredListings
     : (searchFilteredListings ?? []).filter((listing) => {
         const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
         return String(animal?.gender ?? "").toLowerCase() === sex;
       });
-  const pagedListings = hasSearch ? (listings ?? []).slice(offset, offset + pageSize) : listings;
-  const hasNextPage = hasSearch ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
+  const pagedListings = hasSearch || hasNearbyFilter ? (listings ?? []).slice(offset, offset + pageSize) : listings;
+  const hasNextPage = hasSearch || hasNearbyFilter ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
   const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
@@ -477,6 +521,7 @@ export default async function MarketplacePage({
   const featuredListings = featuredListingRows ?? [];
   const recommendedListings = (listings ?? []).slice(4, 8);
   const resultLocationLabel = location.trim()
+    || (nearbyCenter && latitude !== null && longitude !== null ? "your area" : "")
     || (detectedLocation?.type === "town"
       ? [detectedLocation.town, detectedLocation.province].filter(Boolean).join(", ")
       : detectedLocation?.province)
@@ -577,6 +622,16 @@ export default async function MarketplacePage({
             ))}
           </select>
           <input className="field" name="location" placeholder="Province or town" defaultValue={location} />
+          <input type="hidden" name="lat" value={lat} />
+          <input type="hidden" name="lng" value={lng} />
+          <select className="field" name="radius" defaultValue={selectedRadius}>
+            <option value="all">All South Africa</option>
+            <option value="5">Within 5km</option>
+            <option value="10">Within 10km</option>
+            <option value="25">Within 25km</option>
+            <option value="50">Within 50km</option>
+            <option value="100">Within 100km</option>
+          </select>
           <select className="field" name="sex" defaultValue={sex}>
             <option value="all">Any sex</option>
             <option value="female">Female</option>
@@ -871,6 +926,10 @@ export default async function MarketplacePage({
       q={q}
       category={category}
       subcategory={subcategory}
+      location={location || resultLocationLabel}
+      latitude={lat}
+      longitude={lng}
+      radius={selectedRadius}
       locationCounts={locationCountObject}
       listingSuggestions={listingSuggestions}
     >

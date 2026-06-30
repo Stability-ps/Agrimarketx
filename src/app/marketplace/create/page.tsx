@@ -5,6 +5,8 @@ import { LocationFields } from "@/components/LocationFields";
 import { StableFormToken } from "@/components/StableFormToken";
 import { UniversalListingForm } from "@/components/UniversalListingForm";
 import { createUniversalMarketplaceListing } from "@/app/marketplace/actions";
+import { getCurrentFarm } from "@/lib/farm-server";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function CreateMarketplaceListingPage({
   searchParams
@@ -12,6 +14,13 @@ export default async function CreateMarketplaceListingPage({
   searchParams: Promise<{ message?: string }>;
 }) {
   const { message } = await searchParams;
+  const farm = await getCurrentFarm();
+  const supabase = await createClient();
+  const { data: farmDetails } = await supabase
+    .from("farms")
+    .select("location, province, gps_latitude, gps_longitude")
+    .eq("id", farm.id)
+    .maybeSingle();
 
   return (
     <AppShell>
@@ -40,7 +49,12 @@ export default async function CreateMarketplaceListingPage({
               <option value="false">Not negotiable - buyers contact seller</option>
             </select>
           </label>
-          <LocationFields />
+          <LocationFields
+            defaultProvince={farmDetails?.province}
+            defaultTown={farmDetails?.location}
+            defaultLatitude={farmDetails?.gps_latitude}
+            defaultLongitude={farmDetails?.gps_longitude}
+          />
           <div className="sm:col-span-2 mt-2 border-t border-slate-200 pt-4">
             <h3 className="font-bold">Seller contact</h3>
             <p className="mt-1 text-sm text-slate-600">Contact details are pulled from your registered profile and only shown after a buyer taps Contact Seller.</p>

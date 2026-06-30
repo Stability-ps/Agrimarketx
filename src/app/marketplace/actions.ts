@@ -22,6 +22,11 @@ function moneyValue(value: FormDataEntryValue | null) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
+function coordinateValue(value: FormDataEntryValue | null) {
+  const number = Number(String(value ?? "").trim());
+  return Number.isFinite(number) ? number : null;
+}
+
 function detailsFromForm(formData: FormData) {
   const details: Record<string, string> = {};
 
@@ -160,6 +165,8 @@ export async function createMarketplaceListing(formData: FormData) {
     province: optionalString(formData.get("province")),
     town: optionalString(formData.get("town")),
     approximate_location: optionalString(formData.get("approximateLocation")),
+    latitude: coordinateValue(formData.get("latitude")),
+    longitude: coordinateValue(formData.get("longitude")),
     ...contact,
     preferred_contact_method: optionalString(formData.get("preferredContactMethod")) ?? "whatsapp",
     price_negotiable: String(formData.get("priceNegotiable") ?? "true") === "true",
@@ -220,6 +227,8 @@ export async function createUniversalMarketplaceListing(formData: FormData) {
     province: optionalString(formData.get("province")),
     town: optionalString(formData.get("town")),
     approximate_location: optionalString(formData.get("approximateLocation")),
+    latitude: coordinateValue(formData.get("latitude")),
+    longitude: coordinateValue(formData.get("longitude")),
     ...contact,
     preferred_contact_method: optionalString(formData.get("preferredContactMethod")) ?? "whatsapp",
     price_negotiable: String(formData.get("priceNegotiable") ?? "true") === "true",
@@ -274,6 +283,8 @@ export async function updateMarketplaceListing(formData: FormData) {
       province: optionalString(formData.get("province")),
       town: optionalString(formData.get("town")),
       approximate_location: optionalString(formData.get("approximateLocation")),
+      latitude: coordinateValue(formData.get("latitude")),
+      longitude: coordinateValue(formData.get("longitude")),
       ...contact,
       preferred_contact_method: optionalString(formData.get("preferredContactMethod")) ?? "whatsapp",
       price_negotiable: String(formData.get("priceNegotiable") ?? "true") === "true",
