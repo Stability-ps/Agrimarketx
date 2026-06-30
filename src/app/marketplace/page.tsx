@@ -24,7 +24,7 @@ import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
-import { findKnownLocation, haversineDistanceKm, listingCoordinates, parseCoordinate, parseRadiusKm } from "@/lib/location-distance";
+import { findKnownLocation, formatDistanceKm, haversineDistanceKm, listingCoordinates, parseCoordinate, parseRadiusKm, type Coordinates } from "@/lib/location-distance";
 import {
   marketplaceCategories,
   marketplaceCategoryLabel,
@@ -178,6 +178,30 @@ function stripNearbySearchTerms(value: string) {
     .trim();
 }
 
+function withListingDistances<T extends { latitude?: number | string | null; longitude?: number | string | null; town?: string | null; province?: string | null }>(
+  listings: T[] | null | undefined,
+  center: Coordinates | null,
+  radiusKm: number | null
+) {
+  const rows = (listings ?? []).map((listing) => {
+    const coords = center ? listingCoordinates(listing) : null;
+    const distance = center && coords ? haversineDistanceKm(center, coords) : null;
+
+    return {
+      ...listing,
+      distance_km: distance
+    };
+  });
+
+  const filtered = center && radiusKm
+    ? rows.filter((listing) => typeof listing.distance_km === "number" && listing.distance_km <= radiusKm)
+    : rows;
+
+  return center
+    ? filtered.sort((a, b) => Number(a.distance_km ?? Number.MAX_SAFE_INTEGER) - Number(b.distance_km ?? Number.MAX_SAFE_INTEGER))
+    : filtered;
+}
+
 function quickInfoForListing(listing: any) {
   const details = listing.listing_details as Record<string, unknown> | null | undefined;
   const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
@@ -299,6 +323,9 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
           <MapPin size={14} className="shrink-0" />
           <span className="truncate">{location}</span>
         </p>
+        {listing.distance_km !== null && listing.distance_km !== undefined ? (
+          <p className="mt-1 text-xs font-bold text-brand-green">{formatDistanceKm(listing.distance_km)}</p>
+        ) : null}
         <p className="mt-2 line-clamp-1 text-sm text-slate-600">
           {marketplaceCategoryLabel(listing.category)}
           {marketplaceSubcategoryLabel(listing.category, listing.subcategory) ? ` · ${marketplaceSubcategoryLabel(listing.category, listing.subcategory)}` : ""}
@@ -418,12 +445,7 @@ export default async function MarketplacePage({
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
     .range(hasSearch || hasNearbyFilter ? 0 : offset, hasSearch || hasNearbyFilter ? 499 : offset + pageSize - 1);
-  const nearbyListings = hasNearbyFilter && nearbyCenter && radiusKm
-    ? (rawListings ?? []).filter((listing) => {
-        const coords = listingCoordinates(listing);
-        return coords ? haversineDistanceKm(nearbyCenter, coords) <= radiusKm : false;
-      })
-    : rawListings;
+  const nearbyListings = withListingDistances(rawListings, nearbyCenter, radiusKm);
   const exactSearchListings = hasTextSearch
     ? (nearbyListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
     : nearbyListings;
@@ -502,7 +524,7 @@ export default async function MarketplacePage({
     .select(marketplaceListingSelect)
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(12);
+    .limit(hasNearbyFilter || nearbyCenter ? 80 : 12);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
     .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
@@ -518,7 +540,7 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
-  const featuredListings = featuredListingRows ?? [];
+  const featuredListings = withListingDistances(featuredListingRows, nearbyCenter, radiusKm).slice(0, 12);
   const recommendedListings = (listings ?? []).slice(4, 8);
   const resultLocationLabel = location.trim()
     || (nearbyCenter && latitude !== null && longitude !== null ? "your area" : "")

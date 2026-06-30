@@ -2,8 +2,11 @@
 
 import { MapPin, Navigation, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { GoogleLocationMap } from "@/components/GoogleLocationMap";
+import { GooglePlaceInput, type PlaceSelection } from "@/components/GooglePlaceInput";
 import { allKnownLocations, nearestKnownLocation, radiusOptions } from "@/lib/location-distance";
+import { createClient } from "@/lib/supabase/client";
 
 type RecentLocation = {
   label: string;
@@ -54,6 +57,9 @@ export function MarketplaceLocationSelector({
   const [selectedRadius, setSelectedRadius] = useState(radius || "all");
   const [status, setStatus] = useState("");
   const [recent, setRecent] = useState<RecentLocation[]>([]);
+  const [draftLatitude, setDraftLatitude] = useState(latitude ?? "");
+  const [draftLongitude, setDraftLongitude] = useState(longitude ?? "");
+  const [profileFallback, setProfileFallback] = useState<RecentLocation | null>(null);
   const knownLocations = useMemo(() => allKnownLocations().filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude)), []);
   const suggestions = locationText.trim()
     ? knownLocations
@@ -62,9 +68,79 @@ export function MarketplaceLocationSelector({
     : [];
   const label = location || (latitude && longitude ? "your area" : "All South Africa");
 
+  useEffect(() => {
+    setLocationText(location);
+    setSelectedRadius(radius || "all");
+    setDraftLatitude(latitude ?? "");
+    setDraftLongitude(longitude ?? "");
+  }, [latitude, location, longitude, radius]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPreferredLocation() {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+
+        if (!data.user) {
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("preferred_location, preferred_latitude, preferred_longitude, preferred_location_radius")
+          .eq("id", data.user.id)
+          .maybeSingle();
+
+        if (!mounted || !profile?.preferred_location) {
+          return;
+        }
+
+        setProfileFallback({
+          label: profile.preferred_location,
+          latitude: profile.preferred_latitude ? Number(profile.preferred_latitude) : undefined,
+          longitude: profile.preferred_longitude ? Number(profile.preferred_longitude) : undefined,
+          radius: profile.preferred_location_radius ?? "25"
+        });
+      } catch {
+        // Older databases may not have preference columns yet.
+      }
+    }
+
+    loadPreferredLocation();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   function openPicker() {
     setRecent(recentLocations());
     setOpen(true);
+  }
+
+  async function savePreferredLocation(next: { label: string; latitude?: number; longitude?: number; radius?: string }) {
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+
+      if (!data.user) {
+        return;
+      }
+
+      await supabase
+        .from("profiles")
+        .update({
+          preferred_location: next.label,
+          preferred_latitude: next.latitude ?? null,
+          preferred_longitude: next.longitude ?? null,
+          preferred_location_radius: next.radius ?? selectedRadius
+        })
+        .eq("id", data.user.id);
+    } catch {
+      // Profile location persistence is helpful, but browsing should keep working if the DB is not migrated yet.
+    }
   }
 
   function applyLocation(next: { label: string; latitude?: number; longitude?: number; radius?: string }) {
@@ -82,6 +158,7 @@ export function MarketplaceLocationSelector({
     }
 
     saveRecentLocation(next);
+    void savePreferredLocation(next);
     setRecent(recentLocations());
     setOpen(false);
     router.push(`/marketplace?${params.toString()}` as never);
@@ -98,13 +175,13 @@ export function MarketplaceLocationSelector({
     router.push(`/marketplace${params.toString() ? `?${params.toString()}` : ""}` as never);
   }
 
-  function useCurrentLocation() {
+  const requestCurrentLocation = useCallback((options?: { keepOpen?: boolean; silent?: boolean }) => {
     if (!navigator.geolocation) {
       setStatus("Location is not supported on this device.");
       return;
     }
 
-    setStatus("Finding your location...");
+    setStatus(options?.silent ? "" : "Finding your location...");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords = {
@@ -113,23 +190,77 @@ export function MarketplaceLocationSelector({
         };
         const nearest = nearestKnownLocation(coords);
         const nextLabel = nearest ? `${nearest.town}, ${nearest.province}` : "Near me";
+        setLocationText(nextLabel);
+        setDraftLatitude(String(coords.latitude));
+        setDraftLongitude(String(coords.longitude));
+
+        if (options?.keepOpen) {
+          setStatus(nearest ? `Matched nearest area: ${nextLabel}` : "Location detected.");
+          return;
+        }
+
         applyLocation({ label: nextLabel, ...coords, radius: selectedRadius === "all" ? "25" : selectedRadius });
       },
-      () => setStatus("Could not access your location. You can still choose a town manually."),
+      () => {
+        if (profileFallback && !location && !latitude && !longitude) {
+          applyLocation(profileFallback);
+          return;
+        }
+
+        setStatus(options?.silent ? "" : "Could not access your location. You can still choose a town manually.");
+      },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
+  }, [latitude, location, longitude, profileFallback, selectedRadius]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || location || latitude || longitude) {
+      return;
+    }
+
+    const asked = window.localStorage.getItem("agrimarketx_location_permission_asked");
+    if (asked || !navigator.geolocation) {
+      return;
+    }
+
+    window.localStorage.setItem("agrimarketx_location_permission_asked", "true");
+    const timer = window.setTimeout(() => requestCurrentLocation({ silent: true }), 900);
+    return () => window.clearTimeout(timer);
+  }, [latitude, location, longitude, requestCurrentLocation]);
+
+  function selectPlace(place: PlaceSelection) {
+    setLocationText(place.label);
+    setDraftLatitude(place.latitude !== undefined ? String(place.latitude) : "");
+    setDraftLongitude(place.longitude !== undefined ? String(place.longitude) : "");
+  }
+
+  function pickMapLocation(coords: { latitude: number; longitude: number }) {
+    const nearest = nearestKnownLocation(coords);
+    const nextLabel = nearest ? `${nearest.town}, ${nearest.province}` : "Near me";
+    setLocationText(nextLabel);
+    setDraftLatitude(String(coords.latitude));
+    setDraftLongitude(String(coords.longitude));
   }
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-full bg-green-50 px-3 text-xs font-bold text-brand-green transition active:scale-95 lg:justify-start"
-        onClick={openPicker}
-      >
-        <MapPin size={15} />
-        Showing listings near <span className="truncate">{label}</span>
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-green-50 px-3 text-xs font-bold text-brand-green transition active:scale-95 lg:justify-start"
+          onClick={openPicker}
+        >
+          <MapPin size={15} />
+          Showing listings near <span className="truncate">{label}</span>
+        </button>
+        <button
+          type="button"
+          className="min-h-9 rounded-full bg-brand-green px-3 text-xs font-black text-white shadow-sm transition active:scale-95"
+          onClick={() => requestCurrentLocation()}
+        >
+          Near Me
+        </button>
+      </div>
 
       {open ? (
         <div className="fixed inset-0 z-[70] bg-white p-4 pt-[calc(env(safe-area-inset-top)+1rem)] text-brand-navy lg:absolute lg:inset-auto lg:right-0 lg:top-[calc(100%+0.5rem)] lg:w-[420px] lg:rounded-xl lg:border lg:border-slate-200 lg:p-4 lg:shadow-soft">
@@ -143,7 +274,7 @@ export function MarketplaceLocationSelector({
             </button>
           </div>
 
-          <button type="button" className="primary-button w-full" onClick={useCurrentLocation}>
+          <button type="button" className="primary-button w-full" onClick={() => requestCurrentLocation({ keepOpen: true })}>
             <Navigation size={17} />
             Use my location
           </button>
@@ -160,7 +291,12 @@ export function MarketplaceLocationSelector({
 
           <label className="mt-3 block">
             <span className="text-sm font-semibold">Search province, town or city</span>
-            <input className="field mt-1" value={locationText} onChange={(event) => setLocationText(event.target.value)} placeholder="e.g. Pretoria, Nigel, Polokwane" autoFocus />
+            <GooglePlaceInput
+              value={locationText}
+              onChange={setLocationText}
+              onPlaceSelect={selectPlace}
+              placeholder="e.g. Pretoria, Nigel, Polokwane"
+            />
           </label>
 
           <div className="mt-3 grid gap-2">
@@ -169,7 +305,11 @@ export function MarketplaceLocationSelector({
                 key={`${item.town}-${item.province}`}
                 type="button"
                 className="rounded-md border border-slate-200 px-3 py-2 text-left text-sm font-bold hover:border-brand-green"
-                onClick={() => applyLocation({ label: `${item.town}, ${item.province}`, latitude: item.latitude, longitude: item.longitude, radius: selectedRadius })}
+                onClick={() => {
+                  setDraftLatitude(String(item.latitude));
+                  setDraftLongitude(String(item.longitude));
+                  applyLocation({ label: `${item.town}, ${item.province}`, latitude: item.latitude, longitude: item.longitude, radius: selectedRadius });
+                }}
               >
                 {item.town}, {item.province}
               </button>
@@ -190,21 +330,23 @@ export function MarketplaceLocationSelector({
           ) : null}
 
           <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-            {latitude && longitude ? (
-              <iframe
-                title="Selected location map preview"
-                className="h-40 w-full"
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(longitude) - 0.08}%2C${Number(latitude) - 0.08}%2C${Number(longitude) + 0.08}%2C${Number(latitude) + 0.08}&layer=mapnik&marker=${latitude}%2C${longitude}`}
-              />
-            ) : (
-              <div className="grid h-28 place-items-center px-4 text-center text-sm font-semibold text-slate-600">Choose or detect a location to preview the area.</div>
-            )}
+            <GoogleLocationMap latitude={draftLatitude} longitude={draftLongitude} onPick={pickMapLocation} heightClass="h-44" />
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
             <button type="button" className="secondary-button" onClick={clearLocation}>All South Africa</button>
-            <button type="button" className="primary-button" onClick={() => applyLocation({ label: locationText.trim() || "All South Africa", radius: selectedRadius })}>Apply</button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => applyLocation({
+                label: locationText.trim() || "All South Africa",
+                latitude: draftLatitude ? Number(draftLatitude) : undefined,
+                longitude: draftLongitude ? Number(draftLongitude) : undefined,
+                radius: selectedRadius
+              })}
+            >
+              Apply
+            </button>
           </div>
         </div>
       ) : null}

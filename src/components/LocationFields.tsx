@@ -1,9 +1,11 @@
 "use client";
 
 import { MapPin, Navigation } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { GoogleLocationMap } from "@/components/GoogleLocationMap";
+import { GooglePlaceInput, type PlaceSelection } from "@/components/GooglePlaceInput";
 import { nearestKnownLocation } from "@/lib/location-distance";
-import { southAfricanProvinces, townsForProvince, publicLocation } from "@/lib/location-options";
+import { southAfricanProvinces, publicLocation } from "@/lib/location-options";
 
 type LocationFieldsProps = {
   provinceName?: string;
@@ -62,8 +64,6 @@ export function LocationFields({
   const [longitude, setLongitude] = useState(defaultLongitude ? String(defaultLongitude) : "");
   const [status, setStatus] = useState("");
   const [manualApproximate, setManualApproximate] = useState(Boolean(defaultApproximate));
-  const towns = useMemo(() => townsForProvince(province), [province]);
-  const listId = `${townName}-suggestions`;
 
   function updateProvince(value: string) {
     setProvince(value);
@@ -76,6 +76,36 @@ export function LocationFields({
     setTown(value);
     if (!manualApproximate) {
       setApproximate(publicLocation(value, province));
+    }
+  }
+
+  function selectPlace(place: PlaceSelection) {
+    const nextProvince = place.province || province;
+    const nextTown = place.town || place.label;
+    setTown(nextTown);
+    setProvince(nextProvince);
+
+    if (place.latitude !== undefined && place.longitude !== undefined) {
+      setLatitude(String(place.latitude));
+      setLongitude(String(place.longitude));
+    }
+
+    if (!manualApproximate) {
+      setApproximate(publicLocation(nextTown, nextProvince));
+    }
+  }
+
+  function pickMapLocation(coords: { latitude: number; longitude: number }) {
+    setLatitude(String(coords.latitude));
+    setLongitude(String(coords.longitude));
+    const nearest = nearestKnownLocation(coords);
+
+    if (nearest) {
+      setProvince(nearest.province);
+      setTown(nearest.town);
+      if (!manualApproximate) {
+        setApproximate(publicLocation(nearest.town, nearest.province));
+      }
     }
   }
 
@@ -122,19 +152,13 @@ export function LocationFields({
       </label>
       <label>
         <span className="text-sm font-semibold">Town / city</span>
-        <input
-          className="field mt-1"
-          name={townName}
-          list={listId}
+        <GooglePlaceInput
           value={town}
-          onChange={(event) => updateTown(event.target.value)}
-          placeholder={province ? "Start typing town or city" : "Select province first"}
+          onChange={updateTown}
+          onPlaceSelect={selectPlace}
+          placeholder={province ? "Search town or city" : "Search town or city"}
         />
-        <datalist id={listId}>
-          {towns.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
+        <input type="hidden" name={townName} value={town} />
       </label>
       {showApproximate ? (
         <label className="sm:col-span-2">
@@ -168,16 +192,7 @@ export function LocationFields({
           </div>
           {status ? <p className="mt-2 text-xs font-semibold text-slate-600">{status}</p> : null}
           <div className="mt-3 overflow-hidden rounded-md border border-slate-200 bg-white">
-            {latitude && longitude ? (
-              <iframe
-                title="Listing location map preview"
-                className="h-40 w-full"
-                loading="lazy"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(longitude) - 0.08}%2C${Number(latitude) - 0.08}%2C${Number(longitude) + 0.08}%2C${Number(latitude) + 0.08}&layer=mapnik&marker=${latitude}%2C${longitude}`}
-              />
-            ) : (
-              <div className="grid h-28 place-items-center px-4 text-center text-sm font-semibold text-slate-600">Use GPS or choose a town to set the listing area.</div>
-            )}
+            <GoogleLocationMap latitude={latitude} longitude={longitude} onPick={pickMapLocation} />
           </div>
         </div>
       ) : null}

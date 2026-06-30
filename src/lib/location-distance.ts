@@ -136,3 +136,16 @@ export function publicAreaLabel(coords: Coordinates) {
   const nearest = nearestKnownLocation(coords);
   return nearest ? `${nearest.town}, ${nearest.province}` : "your area";
 }
+
+export function formatDistanceKm(distance: number | null | undefined) {
+  if (!Number.isFinite(Number(distance))) {
+    return "";
+  }
+
+  const value = Number(distance);
+  if (value < 1) {
+    return "Less than 1 km away";
+  }
+
+  return `${Math.round(value)} km away`;
+}

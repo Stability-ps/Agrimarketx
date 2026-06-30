@@ -8,6 +8,7 @@ import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
+import { formatDistanceKm } from "@/lib/location-distance";
 import { marketplaceCategoryLabel } from "@/lib/marketplace-categories";
 
 type FeaturedListing = {
@@ -18,6 +19,7 @@ type FeaturedListing = {
   province: string | null;
   town: string | null;
   approximate_location: string | null;
+  distance_km?: number | null;
   marketplace_listing_media?: Array<{
     storage_path: string | null;
     media_type: string | null;
@@ -162,6 +164,9 @@ export function FeaturedListingsCarousel({
                   <MapPin size={12} className="shrink-0" />
                   <span className="truncate">{location}</span>
                 </p>
+                {listing.distance_km !== null && listing.distance_km !== undefined ? (
+                  <p className="mt-1 text-[10px] font-bold text-brand-green sm:text-xs">{formatDistanceKm(listing.distance_km)}</p>
+                ) : null}
                 <p className="mt-1 line-clamp-1 text-[10px] text-slate-500 sm:text-xs lg:text-sm">{marketplaceCategoryLabel(listing.category)}</p>
                 <p className="mt-2 text-sm font-black text-brand-green sm:text-base lg:text-xl">{formatRand(listing.price)}</p>
               </div>
