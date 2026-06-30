@@ -24,7 +24,7 @@ import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
-import { findKnownLocation, formatDistanceKm, haversineDistanceKm, listingCoordinates, parseCoordinate, parseRadiusKm, type Coordinates } from "@/lib/location-distance";
+import { exactListingCoordinates, findKnownLocation, formatDistanceKm, haversineDistanceKm, parseCoordinate, parseRadiusKm, publicAreaLabel, type Coordinates } from "@/lib/location-distance";
 import {
   marketplaceCategories,
   marketplaceCategoryLabel,
@@ -184,7 +184,7 @@ function withListingDistances<T extends { latitude?: number | string | null; lon
   radiusKm: number | null
 ) {
   const rows = (listings ?? []).map((listing) => {
-    const coords = center ? listingCoordinates(listing) : null;
+    const coords = center ? exactListingCoordinates(listing) : null;
     const distance = center && coords ? haversineDistanceKm(center, coords) : null;
 
     return {
@@ -383,6 +383,7 @@ export default async function MarketplacePage({
         ? { latitude: detectedKnownLocation.latitude, longitude: detectedKnownLocation.longitude }
         : null;
   const hasNearbyFilter = Boolean(nearbyCenter && radiusKm);
+  const hasLocationContext = Boolean(nearbyCenter);
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
   const returnParams = new URLSearchParams();
   if (q) returnParams.set("q", q);
@@ -410,12 +411,12 @@ export default async function MarketplacePage({
     listingQuery = listingQuery.eq("subcategory", subcategory.trim());
   }
 
-  if (location.trim() && !hasNearbyFilter) {
+  if (location.trim() && !hasLocationContext) {
     const place = location.trim().replace(/[%_]/g, "");
     listingQuery = listingQuery.or(`province.ilike.%${place}%,town.ilike.%${place}%,approximate_location.ilike.%${place}%`);
   }
 
-  if (!location.trim() && detectedLocation && !hasNearbyFilter) {
+  if (!location.trim() && detectedLocation && !hasLocationContext) {
     const locationTerms = detectedLocation.type === "province"
       ? [detectedLocation.province]
       : [detectedLocation.town, ...detectedLocation.aliases, detectedLocation.province].filter(Boolean);
@@ -444,7 +445,7 @@ export default async function MarketplacePage({
 
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
-    .range(hasSearch || hasNearbyFilter ? 0 : offset, hasSearch || hasNearbyFilter ? 499 : offset + pageSize - 1);
+    .range(hasSearch || hasLocationContext ? 0 : offset, hasSearch || hasLocationContext ? 499 : offset + pageSize - 1);
   const nearbyListings = withListingDistances(rawListings, nearbyCenter, radiusKm);
   const exactSearchListings = hasTextSearch
     ? (nearbyListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
@@ -466,8 +467,8 @@ export default async function MarketplacePage({
         const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
         return String(animal?.gender ?? "").toLowerCase() === sex;
       });
-  const pagedListings = hasSearch || hasNearbyFilter ? (listings ?? []).slice(offset, offset + pageSize) : listings;
-  const hasNextPage = hasSearch || hasNearbyFilter ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
+  const pagedListings = hasSearch || hasLocationContext ? (listings ?? []).slice(offset, offset + pageSize) : listings;
+  const hasNextPage = hasSearch || hasLocationContext ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
   const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
@@ -524,7 +525,7 @@ export default async function MarketplacePage({
     .select(marketplaceListingSelect)
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(hasNearbyFilter || nearbyCenter ? 80 : 12);
+    .limit(hasLocationContext ? 80 : 12);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
     .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
@@ -543,7 +544,7 @@ export default async function MarketplacePage({
   const featuredListings = withListingDistances(featuredListingRows, nearbyCenter, radiusKm).slice(0, 12);
   const recommendedListings = (listings ?? []).slice(4, 8);
   const resultLocationLabel = location.trim()
-    || (nearbyCenter && latitude !== null && longitude !== null ? "your area" : "")
+    || (nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
       ? [detectedLocation.town, detectedLocation.province].filter(Boolean).join(", ")
       : detectedLocation?.province)

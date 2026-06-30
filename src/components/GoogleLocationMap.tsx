@@ -68,7 +68,7 @@ export function GoogleLocationMap({
         }
       } catch {
         if (!cancelled) {
-          setStatus("Map preview is unavailable right now.");
+          setStatus("Map unavailable. You can still choose your town or city manually.");
         }
       }
     }
@@ -83,7 +83,7 @@ export function GoogleLocationMap({
   if (!hasCoords) {
     return (
       <div className={`grid ${heightClass} place-items-center px-4 text-center text-sm font-semibold text-slate-600`}>
-        Use GPS or choose a town to set the listing area.
+        Choose your town or city to preview the area.
       </div>
     );
   }

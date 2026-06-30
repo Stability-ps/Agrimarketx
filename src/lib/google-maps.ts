@@ -89,3 +89,30 @@ export function placeCoordinates(place: any) {
     longitude: Number(location.lng().toFixed(7))
   };
 }
+
+export async function reverseGeocodeCoordinates(coords: { latitude: number; longitude: number }) {
+  const google = await loadGoogleMaps();
+  const geocoder = new google.maps.Geocoder();
+  const response = await geocoder.geocode({
+    location: { lat: coords.latitude, lng: coords.longitude }
+  });
+  const result = response.results?.[0];
+
+  if (!result) {
+    return {
+      label: "Near me",
+      town: "",
+      province: ""
+    };
+  }
+
+  const town = placeTown(result);
+  const province = placeProvince(result);
+  const label = [town, province].filter(Boolean).join(", ") || result.formatted_address || "Near me";
+
+  return {
+    label,
+    town,
+    province
+  };
+}

@@ -60,7 +60,7 @@ export function GooglePlaceInput({
         });
       } catch {
         if (!cancelled) {
-          setStatus("Google Places is unavailable. You can still type the town manually.");
+          setStatus("Map unavailable. You can still choose your town or city manually.");
         }
       }
     }

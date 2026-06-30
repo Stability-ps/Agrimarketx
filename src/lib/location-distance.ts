@@ -16,7 +16,7 @@ export const radiusOptions = [
   { label: "25km", value: "25" },
   { label: "50km", value: "50" },
   { label: "100km", value: "100" },
-  { label: "All South Africa", value: "all" }
+  { label: "Nationwide", value: "all" }
 ] as const;
 
 const knownLocations: KnownLocation[] = [
@@ -130,6 +130,16 @@ export function listingCoordinates(listing: {
 
   const known = findKnownLocation(listing.town, listing.province);
   return known ? { latitude: known.latitude, longitude: known.longitude } : null;
+}
+
+export function exactListingCoordinates(listing: {
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+}) {
+  const latitude = parseCoordinate(listing.latitude);
+  const longitude = parseCoordinate(listing.longitude);
+
+  return latitude !== null && longitude !== null ? { latitude, longitude } : null;
 }
 
 export function publicAreaLabel(coords: Coordinates) {

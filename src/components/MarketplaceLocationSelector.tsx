@@ -3,9 +3,11 @@
 import { MapPin, Navigation, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { GoogleLocationMap } from "@/components/GoogleLocationMap";
 import { GooglePlaceInput, type PlaceSelection } from "@/components/GooglePlaceInput";
-import { allKnownLocations, nearestKnownLocation, radiusOptions } from "@/lib/location-distance";
+import { allKnownLocations, nearestKnownLocation, publicAreaLabel, radiusOptions } from "@/lib/location-distance";
+import { reverseGeocodeCoordinates } from "@/lib/google-maps";
 import { createClient } from "@/lib/supabase/client";
 
 type RecentLocation = {
@@ -60,13 +62,35 @@ export function MarketplaceLocationSelector({
   const [draftLatitude, setDraftLatitude] = useState(latitude ?? "");
   const [draftLongitude, setDraftLongitude] = useState(longitude ?? "");
   const [profileFallback, setProfileFallback] = useState<RecentLocation | null>(null);
+  const [mounted, setMounted] = useState(false);
   const knownLocations = useMemo(() => allKnownLocations().filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude)), []);
   const suggestions = locationText.trim()
     ? knownLocations
         .filter((item) => `${item.town} ${item.province}`.toLowerCase().includes(locationText.trim().toLowerCase()))
         .slice(0, 6)
     : [];
-  const label = location || (latitude && longitude ? "your area" : "All South Africa");
+  const label = location || (latitude && longitude ? publicAreaLabel({ latitude: Number(latitude), longitude: Number(longitude) }) : "");
+  const locationButtonText = label ? `Showing listings near ${label}` : "Showing listings across South Africa";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open || typeof document === "undefined") {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [open]);
 
   useEffect(() => {
     setLocationText(location);
@@ -175,6 +199,20 @@ export function MarketplaceLocationSelector({
     router.push(`/marketplace${params.toString() ? `?${params.toString()}` : ""}` as never);
   }
 
+  async function resolveArea(coords: { latitude: number; longitude: number }) {
+    try {
+      const resolved = await reverseGeocodeCoordinates(coords);
+      if (resolved.label && resolved.label !== "Near me") {
+        return resolved.label;
+      }
+    } catch {
+      // Fall back to the local town directory if Google reverse geocoding is unavailable.
+    }
+
+    const nearest = nearestKnownLocation(coords);
+    return nearest ? `${nearest.town}, ${nearest.province}` : "Near me";
+  }
+
   const requestCurrentLocation = useCallback((options?: { keepOpen?: boolean; silent?: boolean }) => {
     if (!navigator.geolocation) {
       setStatus("Location is not supported on this device.");
@@ -183,19 +221,18 @@ export function MarketplaceLocationSelector({
 
     setStatus(options?.silent ? "" : "Finding your location...");
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const coords = {
           latitude: Number(position.coords.latitude.toFixed(7)),
           longitude: Number(position.coords.longitude.toFixed(7))
         };
-        const nearest = nearestKnownLocation(coords);
-        const nextLabel = nearest ? `${nearest.town}, ${nearest.province}` : "Near me";
+        const nextLabel = await resolveArea(coords);
         setLocationText(nextLabel);
         setDraftLatitude(String(coords.latitude));
         setDraftLongitude(String(coords.longitude));
 
         if (options?.keepOpen) {
-          setStatus(nearest ? `Matched nearest area: ${nextLabel}` : "Location detected.");
+          setStatus(`Matched nearest area: ${nextLabel}`);
           return;
         }
 
@@ -235,50 +272,53 @@ export function MarketplaceLocationSelector({
   }
 
   function pickMapLocation(coords: { latitude: number; longitude: number }) {
-    const nearest = nearestKnownLocation(coords);
-    const nextLabel = nearest ? `${nearest.town}, ${nearest.province}` : "Near me";
-    setLocationText(nextLabel);
     setDraftLatitude(String(coords.latitude));
     setDraftLongitude(String(coords.longitude));
+    setStatus("Checking selected area...");
+    void resolveArea(coords).then((nextLabel) => {
+      setLocationText(nextLabel);
+      setStatus(`Selected area: ${nextLabel}`);
+    });
   }
 
-  return (
-    <div className="relative">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-green-50 px-3 text-xs font-bold text-brand-green transition active:scale-95 lg:justify-start"
-          onClick={openPicker}
-        >
-          <MapPin size={15} />
-          Showing listings near <span className="truncate">{label}</span>
-        </button>
-        <button
-          type="button"
-          className="min-h-9 rounded-full bg-brand-green px-3 text-xs font-black text-white shadow-sm transition active:scale-95"
-          onClick={() => requestCurrentLocation()}
-        >
-          Near Me
-        </button>
-      </div>
+  function locationPickerModal() {
+    if (!open || !mounted) {
+      return null;
+    }
 
-      {open ? (
-        <div className="fixed inset-0 z-[70] bg-white p-4 pt-[calc(env(safe-area-inset-top)+1rem)] text-brand-navy lg:absolute lg:inset-auto lg:right-0 lg:top-[calc(100%+0.5rem)] lg:w-[420px] lg:rounded-xl lg:border lg:border-slate-200 lg:p-4 lg:shadow-soft">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold">Choose location</h2>
-              <p className="text-sm text-slate-600">Find listings near your town or current GPS area.</p>
-            </div>
-            <button type="button" className="grid h-10 w-10 place-items-center rounded-full bg-slate-100" onClick={() => setOpen(false)} aria-label="Close location picker">
-              <X size={18} />
-            </button>
+    return createPortal(
+      <div className="fixed inset-0 z-[120] flex min-h-[100dvh] flex-col bg-white text-brand-navy">
+        <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+          <button
+            type="button"
+            className="grid h-10 w-10 place-items-center rounded-full bg-slate-100"
+            onClick={() => setOpen(false)}
+            aria-label="Close location picker"
+          >
+            <X size={18} />
+          </button>
+          <div>
+            <h2 className="text-lg font-bold">Choose location</h2>
+            <p className="text-xs font-semibold text-slate-500">{label ? `Current: ${label}` : "Choose your town or city"}</p>
           </div>
+        </header>
 
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-36 [-webkit-overflow-scrolling:touch]">
           <button type="button" className="primary-button w-full" onClick={() => requestCurrentLocation({ keepOpen: true })}>
             <Navigation size={17} />
             Use my location
           </button>
           {status ? <p className="mt-2 text-sm font-semibold text-slate-600">{status}</p> : null}
+
+          <label className="mt-5 block">
+            <span className="text-sm font-semibold">Search town or city</span>
+            <GooglePlaceInput
+              value={locationText}
+              onChange={setLocationText}
+              onPlaceSelect={selectPlace}
+              placeholder="e.g. Pretoria, Nigel, Polokwane"
+            />
+          </label>
 
           <label className="mt-4 block">
             <span className="text-sm font-semibold">Radius</span>
@@ -289,26 +329,20 @@ export function MarketplaceLocationSelector({
             </select>
           </label>
 
-          <label className="mt-3 block">
-            <span className="text-sm font-semibold">Search province, town or city</span>
-            <GooglePlaceInput
-              value={locationText}
-              onChange={setLocationText}
-              onPlaceSelect={selectPlace}
-              placeholder="e.g. Pretoria, Nigel, Polokwane"
-            />
-          </label>
+          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <GoogleLocationMap latitude={draftLatitude} longitude={draftLongitude} onPick={pickMapLocation} heightClass="h-[42vh] min-h-64" />
+          </div>
 
-          <div className="mt-3 grid gap-2">
+          <div className="mt-4 grid gap-2">
             {suggestions.map((item) => (
               <button
                 key={`${item.town}-${item.province}`}
                 type="button"
                 className="rounded-md border border-slate-200 px-3 py-2 text-left text-sm font-bold hover:border-brand-green"
                 onClick={() => {
+                  setLocationText(`${item.town}, ${item.province}`);
                   setDraftLatitude(String(item.latitude));
                   setDraftLongitude(String(item.longitude));
-                  applyLocation({ label: `${item.town}, ${item.province}`, latitude: item.latitude, longitude: item.longitude, radius: selectedRadius });
                 }}
               >
                 {item.town}, {item.province}
@@ -317,7 +351,7 @@ export function MarketplaceLocationSelector({
           </div>
 
           {recent.length > 0 ? (
-            <div className="mt-4">
+            <div className="mt-5">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Recent locations</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {recent.map((item) => (
@@ -328,13 +362,11 @@ export function MarketplaceLocationSelector({
               </div>
             </div>
           ) : null}
+        </div>
 
-          <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-            <GoogleLocationMap latitude={draftLatitude} longitude={draftLongitude} onPick={pickMapLocation} heightClass="h-44" />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button type="button" className="secondary-button" onClick={clearLocation}>All South Africa</button>
+        <footer className="fixed inset-x-0 bottom-0 z-[121] border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)]">
+          <div className="grid grid-cols-[0.9fr_1.1fr] gap-2">
+            <button type="button" className="secondary-button" onClick={clearLocation}>Nationwide</button>
             <button
               type="button"
               className="primary-button"
@@ -348,8 +380,33 @@ export function MarketplaceLocationSelector({
               Apply
             </button>
           </div>
-        </div>
-      ) : null}
+        </footer>
+      </div>,
+      document.body
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-green-50 px-3 text-xs font-bold text-brand-green transition active:scale-95 lg:justify-start"
+          onClick={openPicker}
+        >
+          <MapPin size={15} />
+          <span className="truncate">{locationButtonText}</span>
+        </button>
+        <button
+          type="button"
+          className="min-h-9 rounded-full bg-brand-green px-3 text-xs font-black text-white shadow-sm transition active:scale-95"
+          onClick={() => requestCurrentLocation()}
+        >
+          Near Me
+        </button>
+      </div>
+
+      {locationPickerModal()}
     </div>
   );
 }
