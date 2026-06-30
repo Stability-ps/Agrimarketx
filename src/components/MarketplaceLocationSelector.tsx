@@ -1,14 +1,34 @@
 "use client";
 
 import { MapPin, Navigation, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { GoogleLocationMap } from "@/components/GoogleLocationMap";
-import { GooglePlaceInput, type PlaceSelection } from "@/components/GooglePlaceInput";
+import type { PlaceSelection } from "@/components/GooglePlaceInput";
 import { allKnownLocations, nearestKnownLocation, publicAreaLabel, radiusOptions } from "@/lib/location-distance";
 import { reverseGeocodeCoordinates } from "@/lib/google-maps";
 import { createClient } from "@/lib/supabase/client";
+
+const GooglePlaceInput = dynamic(
+  () => import("@/components/GooglePlaceInput").then((mod) => mod.GooglePlaceInput),
+  {
+    ssr: false,
+    loading: () => <input className="field mt-1" placeholder="Loading town search..." disabled />
+  }
+);
+
+const GoogleLocationMap = dynamic(
+  () => import("@/components/GoogleLocationMap").then((mod) => mod.GoogleLocationMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-[42vh] min-h-64 place-items-center bg-green-50 px-4 text-center text-sm font-semibold text-brand-green">
+        Map loading...
+      </div>
+    )
+  }
+);
 
 type RecentLocation = {
   label: string;
@@ -62,6 +82,7 @@ export function MarketplaceLocationSelector({
   const [draftLatitude, setDraftLatitude] = useState(latitude ?? "");
   const [draftLongitude, setDraftLongitude] = useState(longitude ?? "");
   const [profileFallback, setProfileFallback] = useState<RecentLocation | null>(null);
+  const [cachedFallback, setCachedFallback] = useState<RecentLocation | null>(() => recentLocations()[0] ?? null);
   const [mounted, setMounted] = useState(false);
   const knownLocations = useMemo(() => allKnownLocations().filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude)), []);
   const suggestions = locationText.trim()
@@ -70,7 +91,12 @@ export function MarketplaceLocationSelector({
         .slice(0, 6)
     : [];
   const label = location || (latitude && longitude ? publicAreaLabel({ latitude: Number(latitude), longitude: Number(longitude) }) : "");
-  const locationButtonText = label ? `Showing listings near ${label}` : "Showing listings across South Africa";
+  const rememberedLabel = profileFallback?.label || cachedFallback?.label || "";
+  const locationButtonText = label
+    ? `Showing listings near ${label}`
+    : rememberedLabel
+      ? `Choose location (${rememberedLabel})`
+      : "Showing listings across South Africa";
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +208,7 @@ export function MarketplaceLocationSelector({
     }
 
     saveRecentLocation(next);
+    setCachedFallback(next);
     void savePreferredLocation(next);
     setRecent(recentLocations());
     setOpen(false);
@@ -249,21 +276,6 @@ export function MarketplaceLocationSelector({
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
   }, [latitude, location, longitude, profileFallback, selectedRadius]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || location || latitude || longitude) {
-      return;
-    }
-
-    const asked = window.localStorage.getItem("agrimarketx_location_permission_asked");
-    if (asked || !navigator.geolocation) {
-      return;
-    }
-
-    window.localStorage.setItem("agrimarketx_location_permission_asked", "true");
-    const timer = window.setTimeout(() => requestCurrentLocation({ silent: true }), 900);
-    return () => window.clearTimeout(timer);
-  }, [latitude, location, longitude, requestCurrentLocation]);
 
   function selectPlace(place: PlaceSelection) {
     setLocationText(place.label);

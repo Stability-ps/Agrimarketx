@@ -142,7 +142,14 @@ export function FeaturedListingsCarousel({
               <Link href={detailHref as Route} className="absolute inset-0 z-10" aria-label={`Open ${listing.title}`} />
               <div className="relative">
                 {imageUrl ? (
-                  <img src={imageUrl} alt={listing.title} className="h-24 w-full object-cover sm:h-28 lg:h-44" loading={index < 3 ? "eager" : "lazy"} decoding="async" />
+                  <img
+                    src={imageUrl}
+                    alt={listing.title}
+                    className="h-24 w-full object-cover sm:h-28 lg:h-44"
+                    loading={index < 3 ? "eager" : "lazy"}
+                    fetchPriority={index < 3 ? "high" : "auto"}
+                    decoding="async"
+                  />
                 ) : (
                   <div className="grid h-24 place-items-center bg-green-50 px-2 text-center text-[11px] font-bold text-brand-green sm:h-28 lg:h-44">Featured listing</div>
                 )}
