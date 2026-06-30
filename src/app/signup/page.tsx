@@ -6,11 +6,12 @@ import { createAccount } from "./actions";
 export default async function SignupPage({
   searchParams
 }: {
-  searchParams: Promise<{ accountType?: string; email?: string; fullName?: string; message?: string; phone?: string; sellerType?: string }>;
+  searchParams: Promise<{ accountType?: string; duplicate?: string; email?: string; fullName?: string; message?: string; phone?: string; sellerType?: string }>;
 }) {
-  const { accountType = "buyer", email = "", fullName = "", message, phone = "", sellerType = "individual" } = await searchParams;
+  const { accountType = "buyer", duplicate, email = "", fullName = "", message, phone = "", sellerType = "individual" } = await searchParams;
   const selectedAccountType = accountType === "seller" ? "seller" : "buyer";
   const selectedSellerType = sellerType === "business" ? "business" : "individual";
+  const duplicateEmail = duplicate === "1";
 
   return (
     <main className="page-shell min-h-screen px-4 py-8 lg:px-8">
@@ -28,6 +29,16 @@ export default async function SignupPage({
           {message ? (
             <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
               {message}
+              {duplicateEmail ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href={`/login?email=${encodeURIComponent(email)}` as never} className="rounded-md bg-brand-green px-3 py-2 text-xs font-bold text-white">
+                    Sign In
+                  </Link>
+                  <Link href={`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Use Forgot password to receive a reset link.")}` as never} className="rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900">
+                    Forgot Password
+                  </Link>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <form action={createAccount} className="grid gap-4">

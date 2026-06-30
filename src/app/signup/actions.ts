@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { findAuthUserByEmail } from "@/lib/auth-users";
 import { createClient } from "@/lib/supabase/server";
 
 async function getBaseUrl() {
@@ -17,6 +18,7 @@ function go(path: string): never {
 
 function signupError({
   accountType,
+  duplicate,
   email,
   fullName,
   message,
@@ -24,6 +26,7 @@ function signupError({
   sellerType
 }: {
   accountType: string;
+  duplicate?: boolean;
   email: string;
   fullName: string;
   message: string;
@@ -38,6 +41,10 @@ function signupError({
     phone,
     sellerType
   });
+
+  if (duplicate) {
+    params.set("duplicate", "1");
+  }
 
   go(`/signup?${params.toString()}`);
 }
@@ -78,6 +85,20 @@ export async function createAccount(formData: FormData) {
     signupError({ accountType, email, fullName, message: "Confirm password must match password.", phone, sellerType });
   }
 
+  const existingUser = await findAuthUserByEmail(email);
+
+  if (existingUser) {
+    signupError({
+      accountType,
+      duplicate: true,
+      email,
+      fullName,
+      message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
+      phone,
+      sellerType
+    });
+  }
+
   const next = accountRole === "seller" ? `/onboarding?sellerType=${sellerType}` : "/marketplace";
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -96,6 +117,20 @@ export async function createAccount(formData: FormData) {
   });
 
   if (error) {
+    const lowerMessage = error.message.toLowerCase();
+
+    if (lowerMessage.includes("already") || lowerMessage.includes("registered") || lowerMessage.includes("exists")) {
+      signupError({
+        accountType,
+        duplicate: true,
+        email,
+        fullName,
+        message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
+        phone,
+        sellerType
+      });
+    }
+
     signupError({ accountType, email, fullName, message: error.message, phone, sellerType });
   }
 

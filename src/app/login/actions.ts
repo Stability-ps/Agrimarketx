@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { findAuthUserByEmail } from "@/lib/auth-users";
 import { createClient } from "@/lib/supabase/server";
 
 async function getBaseUrl() {
@@ -15,13 +16,40 @@ function go(path: string): never {
   redirect(path as never);
 }
 
+function loginPath({
+  email,
+  message,
+  next,
+  unconfirmed
+}: {
+  email: string;
+  message: string;
+  next?: string;
+  unconfirmed?: boolean;
+}) {
+  const params = new URLSearchParams({
+    email,
+    message
+  });
+
+  if (next) {
+    params.set("next", next);
+  }
+
+  if (unconfirmed) {
+    params.set("unconfirmed", "1");
+  }
+
+  return `/login?${params.toString()}`;
+}
+
 export async function signInWithEmail(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const requestedNext = String(formData.get("next") ?? "").trim();
 
   if (!email || !password) {
-    go(`/login?message=${encodeURIComponent("Enter your email and password.")}`);
+    go(loginPath({ email, message: "Enter your email and password.", next: requestedNext }));
   }
 
   const supabase = await createClient();
@@ -33,10 +61,54 @@ export async function signInWithEmail(formData: FormData) {
   if (error) {
     const lowerMessage = error.message.toLowerCase();
     if (lowerMessage.includes("email") && (lowerMessage.includes("confirm") || lowerMessage.includes("verified"))) {
-      go(`/login?email=${encodeURIComponent(email)}&unconfirmed=1&message=${encodeURIComponent("Your email address has not been confirmed yet. Please check your inbox and confirm your email before logging in.")}`);
+      go(loginPath({
+        email,
+        message: "Please verify your email before signing in.",
+        next: requestedNext,
+        unconfirmed: true
+      }));
     }
 
-    go(`/signup?email=${encodeURIComponent(email)}&message=${encodeURIComponent("We could not sign you in. Create an account with this email or check your password.")}`);
+    if (lowerMessage.includes("invalid login credentials")) {
+      const authUser = await findAuthUserByEmail(email);
+
+      if (authUser === undefined) {
+        go(loginPath({
+          email,
+          message: "We could not verify your account status. Please try again or reset your password.",
+          next: requestedNext
+        }));
+      }
+
+      if (!authUser) {
+        go(loginPath({
+          email,
+          message: "No account found with this email address.",
+          next: requestedNext
+        }));
+      }
+
+      if (!authUser.emailConfirmedAt) {
+        go(loginPath({
+          email,
+          message: "Please verify your email before signing in.",
+          next: requestedNext,
+          unconfirmed: true
+        }));
+      }
+
+      go(loginPath({
+        email,
+        message: "Incorrect password.",
+        next: requestedNext
+      }));
+    }
+
+    go(loginPath({
+      email,
+      message: error.message,
+      next: requestedNext
+    }));
   }
 
   const {
