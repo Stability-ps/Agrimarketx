@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { MobileBackHomeNav } from "@/components/MobileBackHomeNav";
 import { PwaRegistrar } from "@/components/PwaRegistrar";
 import "./globals.css";
 
@@ -55,6 +57,9 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body>
+        <Suspense fallback={null}>
+          <MobileBackHomeNav />
+        </Suspense>
         {children}
         <PwaRegistrar />
       </body>

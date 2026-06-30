@@ -87,6 +87,17 @@ export async function createAccount(formData: FormData) {
 
   const existingUser = await findAuthUserByEmail(email);
 
+  if (existingUser === undefined) {
+    signupError({
+      accountType,
+      email,
+      fullName,
+      message: "Something went wrong. Please try again.",
+      phone,
+      sellerType
+    });
+  }
+
   if (existingUser) {
     signupError({
       accountType,
@@ -132,6 +143,18 @@ export async function createAccount(formData: FormData) {
     }
 
     signupError({ accountType, email, fullName, message: error.message, phone, sellerType });
+  }
+
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    signupError({
+      accountType,
+      duplicate: true,
+      email,
+      fullName,
+      message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
+      phone,
+      sellerType
+    });
   }
 
   if (data.session) {

@@ -75,7 +75,7 @@ export async function signInWithEmail(formData: FormData) {
       if (authUser === undefined) {
         go(loginPath({
           email,
-          message: "We could not verify your account status. Please try again or reset your password.",
+          message: "Something went wrong. Please try again.",
           next: requestedNext
         }));
       }
@@ -106,7 +106,9 @@ export async function signInWithEmail(formData: FormData) {
 
     go(loginPath({
       email,
-      message: error.message,
+      message: lowerMessage.includes("fetch") || lowerMessage.includes("network") || lowerMessage.includes("server")
+        ? "Something went wrong. Please try again."
+        : error.message,
       next: requestedNext
     }));
   }
@@ -149,7 +151,7 @@ export async function requestPasswordReset(formData: FormData) {
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await getBaseUrl()}/login`
+    redirectTo: `${await getBaseUrl()}/reset-password`
   });
 
   if (error) {

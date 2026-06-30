@@ -7,12 +7,18 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const authAction = requestUrl.searchParams.get("authAction");
   const emailParam = requestUrl.searchParams.get("email");
+  const type = requestUrl.searchParams.get("type");
   const next = requestUrl.searchParams.get("next") ?? "/onboarding";
   let redirectTo = next;
 
   if (code) {
     const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
+
+    if (type === "recovery" || authAction === "reset_password") {
+      return NextResponse.redirect(new URL("/reset-password", requestUrl.origin));
+    }
+
     const {
       data: { user }
     } = await supabase.auth.getUser();
