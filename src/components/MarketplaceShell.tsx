@@ -1,17 +1,20 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { MarketplaceBottomNav } from "./MarketplaceBottomNav";
 import { MarketplaceCategoriesButton } from "./MarketplaceCategoriesButton";
 import { MarketplaceAccountMenuLoader } from "./MarketplaceAccountMenuLoader";
 import { MarketplaceSearch } from "./MarketplaceSearch";
+import type { MarketplaceListingSuggestion } from "@/lib/marketplace-search";
 
 type MarketplaceHeaderProps = {
   q?: string;
   category?: string;
   subcategory?: string;
   locationCounts?: Record<string, number>;
+  listingSuggestions?: MarketplaceListingSuggestion[];
 };
 
-export function MarketplaceHeader({ q = "", category = "all", subcategory = "", locationCounts = {} }: MarketplaceHeaderProps) {
+export function MarketplaceHeader({ q = "", category = "all", subcategory = "", locationCounts = {}, listingSuggestions = [] }: MarketplaceHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur lg:pt-0">
       <div className="mx-auto grid max-w-7xl min-w-0 gap-2 px-3 py-2 sm:px-4 lg:grid-cols-[190px_minmax(0,1fr)_auto] lg:items-center lg:gap-3 lg:px-8 lg:py-3">
@@ -22,7 +25,7 @@ export function MarketplaceHeader({ q = "", category = "all", subcategory = "", 
           <MarketplaceCategoriesButton />
         </div>
 
-        <MarketplaceSearch q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} />
+        <MarketplaceSearch q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} listingSuggestions={listingSuggestions} />
 
         <div className="hidden lg:block">
           <MarketplaceAccountMenuLoader />
@@ -42,15 +45,18 @@ export function MarketplacePageShell({
   q,
   category,
   subcategory,
-  locationCounts
+  locationCounts,
+  listingSuggestions
 }: MarketplaceHeaderProps & {
   children: React.ReactNode;
 }) {
   return (
     <main className="min-h-screen overflow-x-hidden bg-white pb-28 text-brand-navy lg:pb-0">
-      <MarketplaceHeader q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} />
+      <MarketplaceHeader q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} listingSuggestions={listingSuggestions} />
       <div className="mx-auto max-w-7xl min-w-0 px-3 py-3 sm:px-4 lg:px-8 lg:py-5">{children}</div>
-      <MarketplaceBottomNav />
+      <Suspense fallback={null}>
+        <MarketplaceBottomNav />
+      </Suspense>
     </main>
   );
 }

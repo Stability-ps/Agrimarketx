@@ -34,6 +34,7 @@ import {
   marketplaceSubcategories,
   normalizeMarketplaceCategory
 } from "@/lib/marketplace-categories";
+import { relatedMarketplaceCategories, type MarketplaceListingSuggestion } from "@/lib/marketplace-search";
 import { findLocationInSearch, provinceDirectory, provincePreview, stripLocationFromSearch } from "@/lib/provinces";
 import { sellerVerificationBadge } from "@/lib/seller-badges";
 import { createPublicSupabaseClient } from "@/lib/supabase/public-server";
@@ -62,6 +63,29 @@ const wantedListings = [
 ];
 
 const showMarketplaceStats = false;
+
+const marketplaceListingSelect = `
+  id,
+  seller_farm_id,
+  animal_id,
+  title,
+  description,
+  price,
+  currency,
+  province,
+  town,
+  approximate_location,
+  price_negotiable,
+  category,
+  subcategory,
+  listing_details,
+  status,
+  saved_count,
+  created_at,
+  animals(animal_code, tag_number, breed, gender, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
+  marketplace_listing_media(storage_path, media_type, is_primary, created_at),
+  farms:seller_farm_id(id, name, seller_verification_status, seller_account_role, seller_type, sponsored_partner)
+`;
 
 function detailValue(details: Record<string, unknown> | null | undefined, keys: string[]) {
   if (!details) {
@@ -116,6 +140,17 @@ function searchMatchesListing(listing: any, query: string) {
 
   const haystack = listingSearchText(listing);
   return terms.some((term) => haystack.includes(term)) || haystack.includes(cleanQuery.toLowerCase());
+}
+
+function exactSearchMatchesListing(listing: any, query: string) {
+  const cleanQuery = query.trim().toLowerCase();
+  if (!cleanQuery) {
+    return true;
+  }
+
+  const words = cleanQuery.split(/\s+/).map((word) => word.trim()).filter(Boolean);
+  const haystack = listingSearchText(listing);
+  return haystack.includes(cleanQuery) || words.every((word) => haystack.includes(word));
 }
 
 function listingCountKey(category: string | null | undefined, subcategory?: string | null) {
@@ -299,27 +334,7 @@ export default async function MarketplacePage({
   const sellHref = "/marketplace/create";
   let listingQuery = supabase
     .from("marketplace_listings")
-    .select(`
-      id,
-      seller_farm_id,
-      animal_id,
-      title,
-      description,
-      price,
-      currency,
-      province,
-      town,
-      approximate_location,
-      price_negotiable,
-      category,
-      subcategory,
-      listing_details,
-      status,
-      saved_count,
-      animals(animal_code, tag_number, breed, gender, species(name), animal_media(storage_path, media_type, is_profile, created_at)),
-      marketplace_listing_media(storage_path, media_type, is_primary, created_at),
-      farms:seller_farm_id(id, name, seller_verification_status, seller_account_role, seller_type, sponsored_partner)
-    `)
+    .select(marketplaceListingSelect)
     .eq("status", "active");
 
   if (category !== "all") {
@@ -365,8 +380,19 @@ export default async function MarketplacePage({
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
     .range(hasSearch ? 0 : offset, hasSearch ? 119 : offset + pageSize - 1);
+  const exactSearchListings = hasTextSearch
+    ? (rawListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
+    : rawListings;
+  const relatedCategoryMatches = hasTextSearch && (exactSearchListings ?? []).length === 0
+    ? relatedMarketplaceCategories(searchWithoutLocation)
+    : [];
+  const relatedCategorySet = new Set(relatedCategoryMatches.map((item) => item.category));
   const searchFilteredListings = hasTextSearch
-    ? (rawListings ?? []).filter((listing) => searchMatchesListing(listing, searchWithoutLocation))
+    ? (exactSearchListings ?? []).length > 0
+      ? exactSearchListings
+      : relatedCategoryMatches.length > 0
+        ? (rawListings ?? []).filter((listing) => relatedCategorySet.has(normalizeMarketplaceCategory(listing.category)) || searchMatchesListing(listing, searchWithoutLocation))
+        : []
     : rawListings;
   const listings = sex === "all"
     ? searchFilteredListings
@@ -379,7 +405,7 @@ export default async function MarketplacePage({
   const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
-    .select("category, subcategory, province, town, approximate_location")
+    .select("id, title, category, subcategory, province, town, approximate_location")
     .eq("status", "active")
     .limit(5000);
   const listingCounts = new Map<string, number>();
@@ -417,6 +443,22 @@ export default async function MarketplacePage({
     ]
   }));
   const locationCountObject = Object.fromEntries(locationCounts);
+  const categoryCountObject = Object.fromEntries(listingCounts);
+  const listingSuggestions: MarketplaceListingSuggestion[] = (listingCountRows ?? []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    subcategory: row.subcategory,
+    province: row.province,
+    town: row.town,
+    approximate_location: row.approximate_location
+  }));
+  const { data: featuredListingRows } = await supabase
+    .from("marketplace_listings")
+    .select(marketplaceListingSelect)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(12);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
     .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
@@ -432,7 +474,7 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
-  const featuredListings = (listings ?? []).slice(0, 8);
+  const featuredListings = featuredListingRows ?? [];
   const recommendedListings = (listings ?? []).slice(4, 8);
   const resultLocationLabel = location.trim()
     || (detectedLocation?.type === "town"
@@ -480,7 +522,16 @@ export default async function MarketplacePage({
             const Icon = item.icon;
 
             if (item.label === "More Categories") {
-              return <MoreCategoriesMenu key={item.label} groups={moreCategoryGroups} />;
+              return (
+                <MoreCategoriesMenu
+                  key={item.label}
+                  groups={moreCategoryGroups}
+                  currentCategory={category}
+                  locationCounts={locationCountObject}
+                  categoryCounts={categoryCountObject}
+                  listingSuggestions={listingSuggestions}
+                />
+              );
             }
 
             return (
@@ -551,11 +602,29 @@ export default async function MarketplacePage({
           </div>
           <a href="#marketplace-results" className="text-sm font-bold text-brand-green">View all</a>
         </div>
+        {hasTextSearch && relatedCategoryMatches.length > 0 && (pagedListings ?? []).length > 0 ? (
+          <div className="mb-4 rounded-lg border border-green-100 bg-green-50 px-3 py-3 text-sm text-green-950">
+            <p className="font-bold">
+              No exact results found. Showing related results for {relatedCategoryMatches.map((item) => item.label).join(", ")}.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {relatedCategoryMatches.map((item) => (
+                <Link
+                  key={item.category}
+                  href={`/marketplace?category=${item.category}&q=${encodeURIComponent(q)}` as never}
+                  className="rounded-full bg-white px-3 py-1 text-xs font-bold text-brand-green"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {(pagedListings ?? []).length === 0 ? (
           <section className="panel p-6 text-center">
-            <h3 className="font-bold">{q ? `No listings found for ${q}` : "No marketplace listings yet"}</h3>
+            <h3 className="font-bold">{q ? "No results found" : "No marketplace listings yet"}</h3>
             <p className="mt-2 text-sm text-slate-600">
-              {q ? "Try a popular search or browse a category below." : "Approved listings will appear here as sellers publish them."}
+              {q ? "Try another keyword or browse categories." : "Approved listings will appear here as sellers publish them."}
             </p>
             {q ? (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -803,6 +872,7 @@ export default async function MarketplacePage({
       category={category}
       subcategory={subcategory}
       locationCounts={locationCountObject}
+      listingSuggestions={listingSuggestions}
     >
       {content}
     </MarketplacePageShell>

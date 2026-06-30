@@ -3,20 +3,33 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Bell, Home, PlusCircle, Search, UserCircle } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-function activeFor(pathname: string, href: string) {
-  if (href === "/marketplace") {
-    return pathname === "/" || pathname === "/marketplace";
+function activeFor(pathname: string, searchParams: URLSearchParams, label: string) {
+  if (label === "Home") {
+    return (pathname === "/" || pathname === "/marketplace") && !searchParams.get("focus") && !searchParams.get("q");
   }
 
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (label === "Search") {
+    return pathname === "/marketplace" && (searchParams.get("focus") === "search" || Boolean(searchParams.get("q")));
+  }
+
+  if (label === "Alerts") {
+    return pathname === "/account/notifications";
+  }
+
+  if (label === "Account") {
+    return pathname === "/account" || pathname.startsWith("/account/") || pathname === "/login" || pathname === "/signup";
+  }
+
+  return false;
 }
 
 export function MarketplaceBottomNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -57,7 +70,7 @@ export function MarketplaceBottomNav() {
       <div className="relative mx-auto grid max-w-md grid-cols-5 items-end gap-1">
         {items.slice(0, 2).map((item) => {
           const Icon = item.icon;
-          const active = activeFor(pathname, item.href.split("?")[0]);
+          const active = activeFor(pathname, searchParams, item.label);
 
           return (
             <Link
@@ -74,7 +87,9 @@ export function MarketplaceBottomNav() {
         })}
         <Link
           href={"/marketplace/create" as Route}
-          className="group relative -mt-8 grid min-h-16 touch-manipulation place-items-center gap-1 rounded-lg text-[11px] font-bold text-brand-green"
+          className={`group relative -mt-8 grid min-h-16 touch-manipulation place-items-center gap-1 rounded-lg text-[11px] font-bold text-brand-green ${
+            pathname === "/marketplace/create" ? "bg-green-50" : ""
+          }`}
           aria-label="Sell on AgriMarketX"
         >
           <span className="grid h-16 w-16 place-items-center rounded-full bg-brand-green text-white shadow-[0_12px_30px_rgba(46,125,50,0.35)] transition group-active:scale-95">
@@ -84,7 +99,7 @@ export function MarketplaceBottomNav() {
         </Link>
         {items.slice(2).map((item) => {
           const Icon = item.icon;
-          const active = activeFor(pathname, item.href.split("?")[0]);
+          const active = activeFor(pathname, searchParams, item.label);
 
           return (
             <Link

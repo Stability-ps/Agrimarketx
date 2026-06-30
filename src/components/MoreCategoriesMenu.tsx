@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { ChevronDown, ChevronRight, MoreHorizontal, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildMarketplaceSearchSuggestions,
+  marketplaceSuggestionHref,
+  type MarketplaceListingSuggestion
+} from "@/lib/marketplace-search";
+import { locationSuggestionItems } from "@/lib/provinces";
 
 type MoreCategoryGroup = {
   title: string;
@@ -16,11 +23,25 @@ type MoreCategoryGroup = {
 
 const OPEN_CATEGORIES_EVENT = "agrimarketx:open-categories";
 
-export function MoreCategoriesMenu({ groups }: { groups: MoreCategoryGroup[] }) {
+export function MoreCategoriesMenu({
+  groups,
+  currentCategory = "all",
+  locationCounts = {},
+  categoryCounts = {},
+  listingSuggestions = []
+}: {
+  groups: MoreCategoryGroup[];
+  currentCategory?: string;
+  locationCounts?: Record<string, number>;
+  categoryCounts?: Record<string, number>;
+  listingSuggestions?: MarketplaceListingSuggestion[];
+}) {
+  const router = useRouter();
   const activeGroup = groups.find((group) => group.items.some((item) => item.active));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string[]>(activeGroup ? [activeGroup.title] : []);
+  const locations = useMemo(() => locationSuggestionItems(), []);
   const scrollYRef = useRef(0);
   const lastKnownScrollYRef = useRef(0);
   const openRef = useRef(false);
@@ -113,6 +134,18 @@ export function MoreCategoriesMenu({ groups }: { groups: MoreCategoryGroup[] }) 
       .filter((group) => group.items.length > 0);
   }, [groups, query]);
 
+  const searchSuggestions = useMemo(() => (
+    buildMarketplaceSearchSuggestions({
+      query,
+      currentCategory,
+      locations,
+      locationCounts,
+      categoryCounts,
+      listingSuggestions,
+      includeCounts: true
+    })
+  ), [categoryCounts, currentCategory, listingSuggestions, locationCounts, locations, query]);
+
   function toggleGroup(title: string) {
     setExpanded((current) => (
       current.includes(title)
@@ -131,6 +164,11 @@ export function MoreCategoriesMenu({ groups }: { groups: MoreCategoryGroup[] }) 
         window.scrollTo(0, scrollY);
       }, 80);
     }
+  }
+
+  function chooseSuggestion(href: string) {
+    closeCategories(false);
+    router.push(href as never);
   }
 
   return (
@@ -187,6 +225,31 @@ export function MoreCategoriesMenu({ groups }: { groups: MoreCategoryGroup[] }) 
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            {query.trim() ? (
+              <section className="mb-3 overflow-hidden rounded-xl border border-green-100 bg-green-50/70">
+                <div className="border-b border-green-100 px-4 py-2">
+                  <p className="text-xs font-black uppercase tracking-wide text-brand-green">Search suggestions</p>
+                </div>
+                <div className="grid gap-1 p-2">
+                  {searchSuggestions.length > 0 ? searchSuggestions.map((item) => (
+                    <button
+                      key={`${item.kind}-${item.category ?? ""}-${item.subcategory ?? ""}-${item.query}`}
+                      type="button"
+                      className="flex min-h-11 touch-manipulation items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-slate-700 outline-none transition active:scale-[0.99] active:bg-green-50 active:text-brand-green focus-visible:ring-2 focus-visible:ring-green-100"
+                      onClick={() => chooseSuggestion(marketplaceSuggestionHref(item, currentCategory))}
+                    >
+                      <span className="min-w-0 truncate">{item.label}</span>
+                      {typeof item.count === "number" && item.count > 0 ? (
+                        <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-xs font-bold text-brand-green">{item.count}</span>
+                      ) : null}
+                    </button>
+                  )) : (
+                    <p className="rounded-lg bg-white px-3 py-3 text-sm font-semibold text-slate-500">No suggestions yet. Try a broader word.</p>
+                  )}
+                </div>
+              </section>
+            ) : null}
+
             <div className="grid gap-2">
               {filteredGroups.map((group) => {
                 const isExpanded = expanded.includes(group.title) || Boolean(query.trim());

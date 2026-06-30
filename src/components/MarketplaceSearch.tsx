@@ -6,20 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   marketplaceCategories,
   marketplacePopularSearches,
-  marketplaceSuggestionItems,
-  marketplaceTrendingSearches,
-  type MarketplaceCategory
+  marketplaceTrendingSearches
 } from "@/lib/marketplace-categories";
+import {
+  buildMarketplaceSearchSuggestions,
+  marketplaceSuggestionHref,
+  type MarketplaceListingSuggestion,
+  type MarketplaceSearchSuggestion
+} from "@/lib/marketplace-search";
 import { locationSuggestionItems } from "@/lib/provinces";
-
-type Suggestion = {
-  label: string;
-  query: string;
-  category?: MarketplaceCategory;
-  subcategory?: string | null;
-  count?: number;
-  kind: "category" | "location" | "combined";
-};
 
 function highlight(text: string, query: string) {
   const cleanQuery = query.trim();
@@ -67,12 +62,14 @@ export function MarketplaceSearch({
   q = "",
   category = "all",
   subcategory = "",
-  locationCounts = {}
+  locationCounts = {},
+  listingSuggestions = []
 }: {
   q?: string;
   category?: string;
   subcategory?: string;
   locationCounts?: Record<string, number>;
+  listingSuggestions?: MarketplaceListingSuggestion[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(q);
@@ -82,23 +79,7 @@ export function MarketplaceSearch({
   const wrapperRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const currentCategory = marketplaceCategories.some(([value]) => value === category) ? category : "all";
-  const suggestions = useMemo<Suggestion[]>(
-    () =>
-      marketplaceSuggestionItems().map((item) => ({
-        ...item,
-        kind: "category" as const
-      })),
-    []
-  );
   const locations = useMemo(() => locationSuggestionItems(), []);
-
-  function countForLocation(location: (typeof locations)[number]) {
-    if (location.type === "province") {
-      return locationCounts[location.province.toLowerCase()] ?? 0;
-    }
-
-    return locationCounts[`${String(location.town).toLowerCase()}::${location.province.toLowerCase()}`] ?? 0;
-  }
 
   function browseHref() {
     const params = new URLSearchParams();
@@ -146,84 +127,15 @@ export function MarketplaceSearch({
   }, []);
 
   const filteredSuggestions = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase();
-    const categoryPriority = currentCategory !== "all";
-    const locationMatches = locations
-      .map((location) => ({
-        location,
-        count: countForLocation(location),
-        matches: `${location.label} ${location.query} ${location.aliases.join(" ")}`.toLowerCase().includes(cleanQuery)
-      }))
-      .filter((item) => cleanQuery && item.matches)
-      .sort((a, b) => b.count - a.count || Number(a.location.type === "town") - Number(b.location.type === "town"))
-      .slice(0, 5)
-      .map<Suggestion>(({ location, count }) => ({
-        label: `${location.label}${count ? ` (${count} listings)` : ""}`,
-        query: location.query,
-        count,
-        kind: "location"
-      }));
-
-    const rankedCategories = suggestions
-      .filter((item) => {
-        if (!cleanQuery) {
-          return categoryPriority ? item.category === currentCategory : true;
-        }
-
-        return `${item.label} ${item.query}`.toLowerCase().includes(cleanQuery);
-      })
-      .sort((a, b) => {
-        if (!categoryPriority) {
-          return 0;
-        }
-
-        return Number(b.category === currentCategory) - Number(a.category === currentCategory);
-      });
-
-    const bestLocation = locationMatches[0];
-    const combinedSuggestions = bestLocation
-      ? rankedCategories
-          .filter((item) => cleanQuery && `${item.label} ${item.query}`.toLowerCase().split(/\s+/).some((word) => cleanQuery.includes(word)))
-          .slice(0, 4)
-          .map<Suggestion>((item) => ({
-            label: `${item.query} in ${bestLocation.label.replace(/\s+\(\d+ listings\)$/, "")}`,
-            query: `${item.query} ${bestLocation.query}`,
-            category: item.category,
-            subcategory: item.subcategory,
-            count: bestLocation.count,
-            kind: "combined"
-          }))
-      : [];
-
-    const merged = [...combinedSuggestions, ...locationMatches, ...rankedCategories];
-    const seen = new Set<string>();
-
-    return merged
-      .filter((item) => {
-        const key = `${item.kind}-${item.category ?? ""}-${item.subcategory ?? ""}-${item.query}`;
-        if (seen.has(key)) {
-          return false;
-        }
-
-        seen.add(key);
-        return true;
-      })
-      .slice(0, 10);
-  }, [currentCategory, locationCounts, locations, query, suggestions]);
-
-  function hrefFor(item: Suggestion) {
-    const params = new URLSearchParams();
-    params.set("q", item.query);
-    if (item.category) {
-      params.set("category", item.category);
-    } else if (currentCategory !== "all") {
-      params.set("category", currentCategory);
-    }
-    if (item.subcategory) {
-      params.set("subcategory", item.subcategory);
-    }
-    return `/marketplace?${params.toString()}`;
-  }
+    return buildMarketplaceSearchSuggestions({
+      query,
+      currentCategory,
+      locations,
+      locationCounts,
+      listingSuggestions,
+      includeCounts: false
+    });
+  }, [currentCategory, listingSuggestions, locationCounts, locations, query]);
 
   function submitSearch() {
     const cleanQuery = query.trim();
@@ -239,10 +151,10 @@ export function MarketplaceSearch({
     router.push(browseHref() as never);
   }
 
-  function chooseSuggestion(item: Suggestion) {
+  function chooseSuggestion(item: MarketplaceSearchSuggestion) {
     saveRecentSearch(item.query);
     setOpen(false);
-    router.push(hrefFor(item) as never);
+    router.push(marketplaceSuggestionHref(item, currentCategory) as never);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
