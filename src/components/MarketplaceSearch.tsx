@@ -14,6 +14,7 @@ import {
   type MarketplaceListingSuggestion,
   type MarketplaceSearchSuggestion
 } from "@/lib/marketplace-search";
+import { MARKETPLACE_SEARCH_FOCUS_EVENT } from "@/lib/marketplace-search-events";
 import { locationSuggestionItems } from "@/lib/provinces";
 
 function highlight(text: string, query: string) {
@@ -73,6 +74,7 @@ export function MarketplaceSearch({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(q);
+  const [debouncedQuery, setDebouncedQuery] = useState(q);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [recent, setRecent] = useState<string[]>([]);
@@ -99,6 +101,7 @@ export function MarketplaceSearch({
 
   useEffect(() => {
     setQuery(q);
+    setDebouncedQuery(q);
   }, [q]);
 
   useEffect(() => {
@@ -106,14 +109,36 @@ export function MarketplaceSearch({
       return;
     }
 
+    function focusMarketplaceSearch() {
+      const input = inputRef.current;
+      if (!input) {
+        return;
+      }
+
+      input.focus();
+      setOpen(true);
+      window.setTimeout(() => {
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 0);
+    }
+
+    document.addEventListener(MARKETPLACE_SEARCH_FOCUS_EVENT, focusMarketplaceSearch);
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("focus") === "search") {
-      window.setTimeout(() => {
-        inputRef.current?.focus();
-        setOpen(true);
-      }, 120);
+      window.setTimeout(focusMarketplaceSearch, 120);
     }
+
+    return () => document.removeEventListener(MARKETPLACE_SEARCH_FOCUS_EVENT, focusMarketplaceSearch);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 160);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
@@ -128,14 +153,14 @@ export function MarketplaceSearch({
 
   const filteredSuggestions = useMemo(() => {
     return buildMarketplaceSearchSuggestions({
-      query,
+      query: debouncedQuery,
       currentCategory,
       locations,
       locationCounts,
       listingSuggestions,
       includeCounts: false
     });
-  }, [currentCategory, listingSuggestions, locationCounts, locations, query]);
+  }, [currentCategory, debouncedQuery, listingSuggestions, locationCounts, locations]);
 
   function submitSearch() {
     const cleanQuery = query.trim();

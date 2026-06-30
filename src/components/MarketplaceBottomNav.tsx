@@ -3,8 +3,10 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Bell, Home, PlusCircle, Search, UserCircle } from "lucide-react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
+import { MARKETPLACE_SEARCH_FOCUS_EVENT } from "@/lib/marketplace-search-events";
 import { createClient } from "@/lib/supabase/client";
 
 function activeFor(pathname: string, searchParams: URLSearchParams, label: string) {
@@ -29,6 +31,7 @@ function activeFor(pathname: string, searchParams: URLSearchParams, label: strin
 
 export function MarketplaceBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
@@ -62,6 +65,23 @@ export function MarketplaceBottomNav() {
     { href: accountHref, label: "Account", icon: UserCircle }
   ];
 
+  function focusMarketplaceSearch(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+
+    if (pathname === "/marketplace" || pathname === "/") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("focus", "search");
+      params.delete("page");
+      const nextHref = `/marketplace?${params.toString()}`;
+
+      router.replace(nextHref as never, { scroll: false });
+      document.dispatchEvent(new Event(MARKETPLACE_SEARCH_FOCUS_EVENT));
+      return;
+    }
+
+    router.push("/marketplace?focus=search" as never);
+  }
+
   return (
     <nav
       className="marketplace-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden"
@@ -76,6 +96,7 @@ export function MarketplaceBottomNav() {
             <Link
               key={item.label}
               href={item.href as Route}
+              onClick={item.label === "Search" ? focusMarketplaceSearch : undefined}
               className={`grid min-h-14 touch-manipulation place-items-center gap-1 rounded-lg px-1 text-[11px] font-bold transition active:scale-95 ${
                 active ? "bg-green-50 text-brand-green" : "text-slate-600 active:bg-green-50 active:text-brand-green"
               }`}
