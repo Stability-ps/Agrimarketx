@@ -63,3 +63,19 @@ input[type="file"].field {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+body.agrimarketx-categories-open .marketplace-bottom-nav {
+  display: none;
+}
+
+@keyframes categorySheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

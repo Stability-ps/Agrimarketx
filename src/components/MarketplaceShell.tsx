@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Grid3X3 } from "lucide-react";
 import { MarketplaceBottomNav } from "./MarketplaceBottomNav";
+import { MarketplaceCategoriesButton } from "./MarketplaceCategoriesButton";
 import { MarketplaceAccountMenuLoader } from "./MarketplaceAccountMenuLoader";
 import { MarketplaceSearch } from "./MarketplaceSearch";
 
@@ -19,13 +19,7 @@ export function MarketplaceHeader({ q = "", category = "all", subcategory = "", 
           <Link href="/marketplace" className="flex min-w-0 items-center gap-3">
             <img src="/agrimarketx-logo.png" alt="AgriMarketX" className="h-auto w-28 max-w-full sm:w-32 lg:w-36" />
           </Link>
-          <Link
-            href="#marketplace-categories"
-            className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-brand-green shadow-sm transition active:scale-95 lg:hidden"
-            aria-label="Browse categories"
-          >
-            <Grid3X3 size={20} />
-          </Link>
+          <MarketplaceCategoriesButton />
         </div>
 
         <MarketplaceSearch q={q} category={category} subcategory={subcategory} locationCounts={locationCounts} />
