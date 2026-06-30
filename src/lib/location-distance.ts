@@ -144,7 +144,7 @@ export function exactListingCoordinates(listing: {
 
 export function publicAreaLabel(coords: Coordinates) {
   const nearest = nearestKnownLocation(coords);
-  return nearest ? `${nearest.town}, ${nearest.province}` : "your area";
+  return nearest ? `${nearest.town}, ${nearest.province}` : "selected area";
 }
 
 export function formatDistanceKm(distance: number | null | undefined) {

@@ -4,6 +4,7 @@ import { MapPin, Navigation } from "lucide-react";
 import { useState } from "react";
 import { GoogleLocationMap } from "@/components/GoogleLocationMap";
 import { GooglePlaceInput, type PlaceSelection } from "@/components/GooglePlaceInput";
+import { reverseGeocodeCoordinates } from "@/lib/google-maps";
 import { nearestKnownLocation } from "@/lib/location-distance";
 import { southAfricanProvinces, publicLocation } from "@/lib/location-options";
 
@@ -95,9 +96,28 @@ export function LocationFields({
     }
   }
 
-  function pickMapLocation(coords: { latitude: number; longitude: number }) {
+  async function applyCoordinates(coords: { latitude: number; longitude: number }, successMessage = "Location saved.") {
     setLatitude(String(coords.latitude));
     setLongitude(String(coords.longitude));
+
+    try {
+      const resolved = await reverseGeocodeCoordinates(coords);
+      const nextTown = resolved.town || resolved.label;
+      const nextProvince = resolved.province || province;
+
+      if (nextTown || nextProvince) {
+        setTown(nextTown);
+        setProvince(nextProvince);
+        if (!manualApproximate) {
+          setApproximate(publicLocation(nextTown, nextProvince));
+        }
+        setStatus(`Matched area: ${[nextTown, nextProvince].filter(Boolean).join(", ")}`);
+        return;
+      }
+    } catch {
+      // Google can fail offline or if Maps is not available; fall back to the local town directory.
+    }
+
     const nearest = nearestKnownLocation(coords);
 
     if (nearest) {
@@ -106,7 +126,16 @@ export function LocationFields({
       if (!manualApproximate) {
         setApproximate(publicLocation(nearest.town, nearest.province));
       }
+      setStatus(`Matched nearest area: ${nearest.town}, ${nearest.province}`);
+      return;
     }
+
+    setStatus(successMessage);
+  }
+
+  function pickMapLocation(coords: { latitude: number; longitude: number }) {
+    setStatus("Checking selected area...");
+    void applyCoordinates(coords, "Map location saved.");
   }
 
   function useCurrentLocation() {
@@ -120,19 +149,7 @@ export function LocationFields({
       (position) => {
         const nextLatitude = Number(position.coords.latitude.toFixed(7));
         const nextLongitude = Number(position.coords.longitude.toFixed(7));
-        const nearest = nearestKnownLocation({ latitude: nextLatitude, longitude: nextLongitude });
-        setLatitude(String(nextLatitude));
-        setLongitude(String(nextLongitude));
-
-        if (nearest) {
-          setProvince(nearest.province);
-          setTown(nearest.town);
-          if (!manualApproximate) {
-            setApproximate(publicLocation(nearest.town, nearest.province));
-          }
-        }
-
-        setStatus(nearest ? `Matched nearest area: ${nearest.town}, ${nearest.province}` : "Location saved.");
+        void applyCoordinates({ latitude: nextLatitude, longitude: nextLongitude });
       },
       () => setStatus("Could not access GPS. You can still set the town manually."),
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }

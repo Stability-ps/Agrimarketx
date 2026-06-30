@@ -648,7 +648,7 @@ export default async function MarketplacePage({
           <input type="hidden" name="lat" value={lat} />
           <input type="hidden" name="lng" value={lng} />
           <select className="field" name="radius" defaultValue={selectedRadius}>
-            <option value="all">All South Africa</option>
+            <option value="all">Nationwide</option>
             <option value="5">Within 5km</option>
             <option value="10">Within 10km</option>
             <option value="25">Within 25km</option>

@@ -370,12 +370,19 @@ export function MarketplaceLocationSelector({
             <button
               type="button"
               className="primary-button"
-              onClick={() => applyLocation({
-                label: locationText.trim() || "All South Africa",
-                latitude: draftLatitude ? Number(draftLatitude) : undefined,
-                longitude: draftLongitude ? Number(draftLongitude) : undefined,
-                radius: selectedRadius
-              })}
+              onClick={() => {
+                if (!locationText.trim() && !draftLatitude && !draftLongitude) {
+                  clearLocation();
+                  return;
+                }
+
+                applyLocation({
+                  label: locationText.trim() || "Selected area",
+                  latitude: draftLatitude ? Number(draftLatitude) : undefined,
+                  longitude: draftLongitude ? Number(draftLongitude) : undefined,
+                  radius: selectedRadius
+                });
+              }}
             >
               Apply
             </button>
