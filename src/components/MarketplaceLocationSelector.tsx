@@ -91,9 +91,10 @@ export function MarketplaceLocationSelector({
         .slice(0, 6)
     : [];
   const label = location || (latitude && longitude ? publicAreaLabel({ latitude: Number(latitude), longitude: Number(longitude) }) : "");
+  const currentLocationLabel = label || profileFallback?.label || cachedFallback?.label || "";
   const locationButtonText = label
-    ? `Showing listings near ${label}`
-    : "Showing listings across South Africa";
+    ? `Near ${label}`
+    : "Across South Africa";
 
   useEffect(() => {
     setMounted(true);
@@ -267,7 +268,7 @@ export function MarketplaceLocationSelector({
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
-  }, [latitude, location, longitude, profileFallback, selectedRadius]);
+  }, [selectedRadius]);
 
   function selectPlace(place: PlaceSelection) {
     setLocationText(place.label);
@@ -303,7 +304,7 @@ export function MarketplaceLocationSelector({
           </button>
           <div>
             <h2 className="text-lg font-bold">Choose location</h2>
-            <p className="text-xs font-semibold text-slate-500">{label ? `Current: ${label}` : "Choose your town or city"}</p>
+            <p className="text-xs font-semibold text-slate-500">{currentLocationLabel ? `Current: ${currentLocationLabel}` : "Choose your town or city"}</p>
           </div>
         </header>
 
@@ -399,19 +400,19 @@ export function MarketplaceLocationSelector({
 
   return (
     <div className="relative">
-      <div className="flex gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-stretch gap-2">
         <button
           type="button"
-          className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-green-50 px-3 text-xs font-bold text-brand-green transition active:scale-95 lg:justify-start"
+          className="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-full bg-green-50 px-2.5 text-xs font-bold leading-tight text-brand-green transition active:scale-95 sm:px-3 lg:justify-start"
           onClick={openPicker}
         >
-          <MapPin size={15} />
-          <span className="truncate">{locationButtonText}</span>
+          <MapPin size={15} className="shrink-0" />
+          <span className="min-w-0 break-words text-center sm:truncate">{locationButtonText}</span>
         </button>
         <button
           type="button"
-          className="min-h-9 rounded-full bg-brand-green px-3 text-xs font-black text-white shadow-sm transition active:scale-95"
-          onClick={() => requestCurrentLocation()}
+          className="min-h-10 rounded-full bg-brand-green px-3 text-xs font-black text-white shadow-sm transition active:scale-95 sm:px-4"
+          onClick={openPicker}
         >
           Near Me
         </button>

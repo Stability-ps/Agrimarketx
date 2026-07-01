@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Car,
+  ChevronDown,
   Heart,
   Home,
   LifeBuoy,
@@ -10,6 +11,7 @@ import {
   PawPrint,
   ShieldCheck,
   ShoppingCart,
+  SlidersHorizontal,
   Tractor,
   Truck,
   Users,
@@ -178,6 +180,71 @@ function stripNearbySearchTerms(value: string) {
     .trim();
 }
 
+function normalizeLocationText(value: string | null | undefined) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/near\s+/g, " ")
+    .replace(/[,/]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function locationParts(location: string, detectedLocation: ReturnType<typeof findLocationInSearch>) {
+  if (detectedLocation?.type === "town") {
+    return {
+      town: detectedLocation.town ?? "",
+      province: detectedLocation.province ?? ""
+    };
+  }
+
+  if (detectedLocation?.type === "province") {
+    return {
+      town: "",
+      province: detectedLocation.province ?? ""
+    };
+  }
+
+  const cleanLocation = location.trim();
+  if (!cleanLocation) {
+    return { town: "", province: "" };
+  }
+
+  const matchedProvince = provinceDirectory.find((province) => normalizeLocationText(cleanLocation).includes(normalizeLocationText(province.name)));
+  const town = cleanLocation
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part && normalizeLocationText(part) !== normalizeLocationText(matchedProvince?.name));
+
+  return {
+    town: town ?? "",
+    province: matchedProvince?.name ?? ""
+  };
+}
+
+function listingMatchesTown(listing: any, town: string) {
+  const cleanTown = normalizeLocationText(town);
+  if (!cleanTown) {
+    return false;
+  }
+
+  return [
+    listing.town,
+    listing.approximate_location
+  ].some((value) => normalizeLocationText(value).includes(cleanTown));
+}
+
+function listingMatchesProvince(listing: any, province: string) {
+  const cleanProvince = normalizeLocationText(province);
+  if (!cleanProvince) {
+    return false;
+  }
+
+  return [
+    listing.province,
+    listing.approximate_location
+  ].some((value) => normalizeLocationText(value).includes(cleanProvince));
+}
+
 function withListingDistances<T extends { latitude?: number | string | null; longitude?: number | string | null; town?: string | null; province?: string | null }>(
   listings: T[] | null | undefined,
   center: Coordinates | null,
@@ -207,6 +274,53 @@ function withListingDistances<T extends { latitude?: number | string | null; lon
   return center
     ? filtered.sort((a, b) => Number(a.distance_km ?? Number.MAX_SAFE_INTEGER) - Number(b.distance_km ?? Number.MAX_SAFE_INTEGER))
     : filtered;
+}
+
+function locationFallbackListings<T extends { latitude?: number | string | null; longitude?: number | string | null; town?: string | null; province?: string | null }>(
+  listings: T[] | null | undefined,
+  options: {
+    center: Coordinates | null;
+    radiusKm: number | null;
+    town: string;
+    province: string;
+    useLocation: boolean;
+  }
+) {
+  const allListings = withListingDistances(listings, options.center, null);
+  const listingsWithCoordinates = allListings.filter((listing) => exactListingCoordinates(listing)).length;
+  const radiusKm = options.radiusKm;
+  const distanceMatched = options.center && radiusKm
+    ? allListings.filter((listing) => typeof listing.distance_km === "number" && listing.distance_km <= radiusKm)
+    : [];
+  const cityMatched = options.useLocation && options.town
+    ? allListings.filter((listing) => listingMatchesTown(listing, options.town))
+    : [];
+  const provinceMatched = options.useLocation && options.province
+    ? allListings.filter((listing) => listingMatchesProvince(listing, options.province))
+    : [];
+  const finalListings = distanceMatched.length > 0
+    ? distanceMatched
+    : cityMatched.length > 0
+      ? cityMatched
+      : provinceMatched.length > 0
+        ? provinceMatched
+        : allListings;
+
+  console.info("[marketplace-location]", {
+    totalApprovedListings: allListings.length,
+    listingsWithCoordinates,
+    distanceMatched: distanceMatched.length,
+    cityMatched: cityMatched.length,
+    provinceMatched: provinceMatched.length,
+    finalDisplayedCount: finalListings.length
+  });
+
+  return finalListings;
+}
+
+function listingSellerIsVerified(listing: any) {
+  const farm = Array.isArray(listing.farms) ? listing.farms[0] : listing.farms;
+  return farm?.seller_verification_status === "verified";
 }
 
 function quickInfoForListing(listing: any) {
@@ -370,10 +484,10 @@ function MarketplaceHomeListingCard({
 export default async function MarketplacePage({
   searchParams
 }: {
-  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; lat?: string; lng?: string; radius?: string; sex?: string; price?: string; contact?: string; page?: string }>;
+  searchParams: Promise<{ message?: string; q?: string; category?: string; subcategory?: string; location?: string; lat?: string; lng?: string; radius?: string; sex?: string; price?: string; verified?: string; sort?: string; contact?: string; page?: string }>;
 }) {
   const params = await searchParams;
-  const { message, q = "", subcategory = "", location = "", lat = "", lng = "", radius = "", sex = "all", price = "all", contact = "" } = params;
+  const { message, q = "", subcategory = "", location = "", lat = "", lng = "", radius = "", sex = "all", price = "all", verified = "all", sort = "newest", contact = "" } = params;
   const currentPage = pageNumber(params.page);
   const offset = (currentPage - 1) * pageSize;
   const category = params.category && params.category !== "all" ? normalizeMarketplaceCategory(params.category) : "all";
@@ -391,6 +505,8 @@ export default async function MarketplacePage({
   const hasExplicitLocationContext = Boolean(nearbyCenter && hasCoordinateLocation);
   const hasNearbyFilter = Boolean(hasExplicitLocationContext && nearbyCenter && radiusKm);
   const hasLocationContext = hasExplicitLocationContext;
+  const requestedLocation = locationParts(location, detectedLocation);
+  const hasLocationFilter = Boolean(location.trim() || detectedLocation);
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
   const returnParams = new URLSearchParams();
   if (q) returnParams.set("q", q);
@@ -402,6 +518,8 @@ export default async function MarketplacePage({
   if (selectedRadius && selectedRadius !== "all") returnParams.set("radius", selectedRadius);
   if (sex && sex !== "all") returnParams.set("sex", sex);
   if (price && price !== "all") returnParams.set("price", price);
+  if (verified && verified !== "all") returnParams.set("verified", verified);
+  if (sort && sort !== "newest") returnParams.set("sort", sort);
   const returnPath = `/marketplace${returnParams.toString() ? `?${returnParams.toString()}` : ""}`;
   const supabase = createPublicSupabaseClient();
   const sellHref = "/marketplace/create";
@@ -418,30 +536,6 @@ export default async function MarketplacePage({
     listingQuery = listingQuery.eq("subcategory", subcategory.trim());
   }
 
-  if (location.trim() && !hasLocationContext) {
-    const place = location.trim().replace(/[%_]/g, "");
-    listingQuery = listingQuery.or(`province.ilike.%${place}%,town.ilike.%${place}%,approximate_location.ilike.%${place}%`);
-  }
-
-  if (!location.trim() && detectedLocation && !hasLocationContext) {
-    const locationTerms = detectedLocation.type === "province"
-      ? [detectedLocation.province]
-      : [detectedLocation.town, ...detectedLocation.aliases, detectedLocation.province].filter(Boolean);
-    const locationFilter = locationTerms
-      .map((term) => String(term).replace(/[%_,]/g, " ").trim())
-      .filter(Boolean)
-      .flatMap((term) => [
-        `province.ilike.%${term}%`,
-        `town.ilike.%${term}%`,
-        `approximate_location.ilike.%${term}%`
-      ])
-      .join(",");
-
-    if (locationFilter) {
-      listingQuery = listingQuery.or(locationFilter);
-    }
-  }
-
   if (price === "under_5000") {
     listingQuery = listingQuery.lt("price", 5000);
   } else if (price === "5000_20000") {
@@ -452,8 +546,14 @@ export default async function MarketplacePage({
 
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
-    .range(hasSearch || hasLocationContext ? 0 : offset, hasSearch || hasLocationContext ? 499 : offset + pageSize - 1);
-  const nearbyListings = withListingDistances(rawListings, hasLocationContext ? nearbyCenter : null, radiusKm);
+    .range(hasSearch || hasLocationContext || hasLocationFilter ? 0 : offset, hasSearch || hasLocationContext || hasLocationFilter ? 499 : offset + pageSize - 1);
+  const nearbyListings = locationFallbackListings(rawListings, {
+    center: hasLocationContext ? nearbyCenter : null,
+    radiusKm,
+    town: requestedLocation.town,
+    province: requestedLocation.province,
+    useLocation: hasLocationFilter || hasLocationContext
+  });
   const exactSearchListings = hasTextSearch
     ? (nearbyListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
     : nearbyListings;
@@ -474,8 +574,27 @@ export default async function MarketplacePage({
         const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
         return String(animal?.gender ?? "").toLowerCase() === sex;
       });
-  const pagedListings = hasSearch || hasLocationContext ? (listings ?? []).slice(offset, offset + pageSize) : listings;
-  const hasNextPage = hasSearch || hasLocationContext ? (listings ?? []).length > offset + pageSize : (rawListings ?? []).length === pageSize;
+  const verifiedListings = verified === "verified"
+    ? (listings ?? []).filter(listingSellerIsVerified)
+    : listings;
+  const sortedListings = [...(verifiedListings ?? [])].sort((a, b) => {
+    if (sort === "nearest" && hasLocationContext) {
+      return Number(a.distance_km ?? Number.MAX_SAFE_INTEGER) - Number(b.distance_km ?? Number.MAX_SAFE_INTEGER);
+    }
+
+    if (sort === "price_asc") {
+      return Number(a.price ?? Number.MAX_SAFE_INTEGER) - Number(b.price ?? Number.MAX_SAFE_INTEGER);
+    }
+
+    if (sort === "price_desc") {
+      return Number(b.price ?? 0) - Number(a.price ?? 0);
+    }
+
+    return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+  });
+  const needsClientPaging = hasSearch || hasLocationContext || hasLocationFilter || verified !== "all" || sort !== "newest";
+  const pagedListings = needsClientPaging ? sortedListings.slice(offset, offset + pageSize) : sortedListings;
+  const hasNextPage = needsClientPaging ? sortedListings.length > offset + pageSize : (rawListings ?? []).length === pageSize;
   const savedListingIds = new Set<string>();
   const { data: listingCountRows } = await supabase
     .from("marketplace_listings")
@@ -548,8 +667,14 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
-  const featuredListings = withListingDistances(featuredListingRows, hasLocationContext ? nearbyCenter : null, radiusKm).slice(0, 12);
-  const recommendedListings = (listings ?? []).slice(4, 8);
+  const featuredListings = locationFallbackListings(featuredListingRows, {
+    center: hasLocationContext ? nearbyCenter : null,
+    radiusKm,
+    town: requestedLocation.town,
+    province: requestedLocation.province,
+    useLocation: hasLocationFilter || hasLocationContext
+  }).slice(0, 12);
+  const recommendedListings = sortedListings.slice(4, 8);
   const resultLocationLabel = location.trim()
     || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
@@ -559,19 +684,6 @@ export default async function MarketplacePage({
 
   const content = (
     <>
-      <section className="mb-4 hidden overflow-hidden rounded-lg bg-brand-navy text-white shadow-soft lg:mb-5 lg:block">
-        <div className="bg-[radial-gradient(circle_at_75%_20%,rgba(46,125,50,0.75),transparent_30%),linear-gradient(120deg,#052e16_0%,#0f172a_55%,#1f3b1f_100%)] p-5 sm:p-8 lg:p-10">
-          <div className="max-w-2xl">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">The Smart Way to Buy &amp; Sell Agri</h1>
-            <p className="mt-3 max-w-xl text-sm text-green-50 sm:text-base">Livestock, equipment, feed, crops and services. All in one trusted marketplace.</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href={sellHref as never} className="primary-button bg-green-600 hover:bg-green-700">Sell Your Item</Link>
-              <Link href={"/how-it-works" as never} className="secondary-button border-white/40 bg-white/10 text-white hover:border-white hover:text-white">How It Works</Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {message ? (
         <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
           {message}
@@ -631,51 +743,89 @@ export default async function MarketplacePage({
         </div>
       </section>
 
-      <details className="mb-5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
-        <summary className="cursor-pointer list-none font-bold text-brand-navy [&::-webkit-details-marker]:hidden">
-          <span className="flex min-h-10 items-center justify-between gap-3">
+      <details className="group mb-5 rounded-xl border border-slate-200 bg-white shadow-sm lg:p-4">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 font-bold text-brand-navy [&::-webkit-details-marker]:hidden lg:px-0">
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal size={20} className="text-brand-green" />
             <span>Filter listings</span>
-            <span className="text-lg text-brand-green">v</span>
+          </span>
+          <span className="grid h-11 w-11 place-items-center rounded-full text-brand-green">
+            <ChevronDown size={22} className="transition-transform duration-200 group-open:rotate-180" />
           </span>
         </summary>
-        <form className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-          <select className="field" name="category" defaultValue={category}>
-            <option value="all">All categories</option>
-            {marketplaceCategories.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <select className="field" name="subcategory" defaultValue={subcategory} disabled={category === "all"}>
-            <option value="">{category === "all" ? "Choose category first" : "All subcategories"}</option>
-            {availableSubcategories.map((item) => (
-              <option key={item.slug} value={item.slug}>{item.label}</option>
-            ))}
-          </select>
-          <input className="field" name="location" placeholder="Province or town" defaultValue={location} />
+        <form className="fixed inset-x-0 bottom-0 z-[80] max-h-[82dvh] overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] shadow-[0_-18px_45px_rgba(15,23,42,0.18)] group-open:block lg:static lg:mt-4 lg:grid lg:max-h-none lg:grid-cols-2 lg:gap-3 lg:overflow-visible lg:rounded-none lg:border-0 lg:p-0 lg:pb-0 lg:shadow-none xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+          <div className="mb-3 flex items-center justify-between lg:hidden">
+            <p className="text-base font-bold">Filter listings</p>
+            <span className="text-xs font-semibold text-slate-500">Choose and apply</span>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Category</span>
+            <select className="field" name="category" defaultValue={category}>
+              <option value="all">All categories</option>
+              {marketplaceCategories.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Subcategory</span>
+            <select className="field" name="subcategory" defaultValue={subcategory} disabled={category === "all"}>
+              <option value="">{category === "all" ? "Choose category first" : "All subcategories"}</option>
+              {availableSubcategories.map((item) => (
+                <option key={item.slug} value={item.slug}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Province or city</span>
+            <input className="field" name="location" placeholder="Province or town" defaultValue={location} />
+          </label>
           <input type="hidden" name="lat" value={lat} />
           <input type="hidden" name="lng" value={lng} />
-          <select className="field" name="radius" defaultValue={selectedRadius}>
-            <option value="all">Nationwide</option>
-            <option value="5">Within 5km</option>
-            <option value="10">Within 10km</option>
-            <option value="25">Within 25km</option>
-            <option value="50">Within 50km</option>
-            <option value="100">Within 100km</option>
-          </select>
-          <select className="field" name="sex" defaultValue={sex}>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Radius</span>
+            <select className="field" name="radius" defaultValue={selectedRadius}>
+              <option value="all">Nationwide</option>
+              <option value="5">Within 5km</option>
+              <option value="10">Within 10km</option>
+              <option value="25">Within 25km</option>
+              <option value="50">Within 50km</option>
+              <option value="100">Within 100km</option>
+            </select>
+          </label>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Price range</span>
+            <select className="field" name="price" defaultValue={price}>
+              <option value="all">Any price</option>
+              <option value="under_5000">Under R5,000</option>
+              <option value="5000_20000">R5,000 - R20,000</option>
+              <option value="over_20000">Over R20,000</option>
+            </select>
+          </label>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Seller verification</span>
+            <select className="field" name="verified" defaultValue={verified}>
+              <option value="all">Any seller</option>
+              <option value="verified">Verified sellers</option>
+            </select>
+          </label>
+          <label className="mt-3 block lg:mt-0">
+            <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500 lg:hidden">Sort by</span>
+            <select className="field" name="sort" defaultValue={sort}>
+              <option value="newest">Newest</option>
+              <option value="nearest">Nearest</option>
+              <option value="price_asc">Lowest price</option>
+              <option value="price_desc">Highest price</option>
+            </select>
+          </label>
+          <select className="field mt-3 lg:mt-0" name="sex" defaultValue={sex}>
             <option value="all">Any sex</option>
             <option value="female">Female</option>
             <option value="male">Male</option>
           </select>
-          <select className="field" name="price" defaultValue={price}>
-            <option value="all">Any price</option>
-            <option value="under_5000">Under R5,000</option>
-            <option value="5000_20000">R5,000 - R20,000</option>
-            <option value="over_20000">Over R20,000</option>
-          </select>
-          <div className="flex gap-2">
-            <button className="primary-button flex-1" type="submit">Filter</button>
-            <Link href="/marketplace" className="secondary-button flex-1">Clear</Link>
+          <div className="fixed inset-x-0 bottom-0 z-[81] grid grid-cols-2 gap-2 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+0.85rem)] pt-3 lg:static lg:flex lg:border-0 lg:p-0">
+            <Link href="/marketplace" className="secondary-button justify-center">Reset</Link>
+            <button className="primary-button justify-center" type="submit">Apply</button>
           </div>
         </form>
       </details>
@@ -707,9 +857,9 @@ export default async function MarketplacePage({
         ) : null}
         {(pagedListings ?? []).length === 0 ? (
           <section className="panel p-6 text-center">
-            <h3 className="font-bold">{q ? "No results found" : "No marketplace listings yet"}</h3>
+            <h3 className="font-bold">{(listingCountRows ?? []).length > 0 ? "No matching listings" : "No marketplace listings yet"}</h3>
             <p className="mt-2 text-sm text-slate-600">
-              {q ? "Try another keyword or browse categories." : "Approved listings will appear here as sellers publish them."}
+              {(listingCountRows ?? []).length > 0 ? "Try widening your filters or switching to Nationwide." : "Approved listings will appear here as sellers publish them."}
             </p>
             {q ? (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
