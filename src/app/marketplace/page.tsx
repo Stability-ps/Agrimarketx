@@ -24,7 +24,7 @@ import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
-import { exactListingCoordinates, findKnownLocation, formatDistanceKm, haversineDistanceKm, parseCoordinate, parseRadiusKm, publicAreaLabel, type Coordinates } from "@/lib/location-distance";
+import { exactListingCoordinates, formatDistanceKm, haversineDistanceKm, parseCoordinate, parseRadiusKm, publicAreaLabel, type Coordinates } from "@/lib/location-distance";
 import {
   marketplaceCategories,
   marketplaceCategoryLabel,
@@ -184,6 +184,13 @@ function withListingDistances<T extends { latitude?: number | string | null; lon
   radiusKm: number | null
 ) {
   const rows = (listings ?? []).map((listing) => {
+    if (!center) {
+      return {
+        ...listing,
+        distance_km: null
+      };
+    }
+
     const coords = center ? exactListingCoordinates(listing) : null;
     const distance = center && coords ? haversineDistanceKm(center, coords) : null;
 
@@ -278,7 +285,17 @@ function quickInfoForListing(listing: any) {
   ].filter(([, value]) => Boolean(value)).slice(0, 3);
 }
 
-function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketplace" }: { listing: any; isSaved: boolean; returnPath?: string }) {
+function MarketplaceHomeListingCard({
+  listing,
+  isSaved,
+  returnPath = "/marketplace",
+  showDistance = false
+}: {
+  listing: any;
+  isSaved: boolean;
+  returnPath?: string;
+  showDistance?: boolean;
+}) {
   const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
   const species = Array.isArray(animal?.species) ? animal?.species[0] : animal?.species;
   const listingMedia = Array.isArray(listing.marketplace_listing_media) ? listing.marketplace_listing_media : [];
@@ -323,7 +340,7 @@ function MarketplaceHomeListingCard({ listing, isSaved, returnPath = "/marketpla
           <MapPin size={14} className="shrink-0" />
           <span className="truncate">{location}</span>
         </p>
-        {listing.distance_km !== null && listing.distance_km !== undefined ? (
+        {showDistance && listing.distance_km !== null && listing.distance_km !== undefined ? (
           <p className="mt-1 text-xs font-bold text-brand-green">{formatDistanceKm(listing.distance_km)}</p>
         ) : null}
         <p className="mt-2 line-clamp-1 text-sm text-slate-600">
@@ -369,21 +386,11 @@ export default async function MarketplacePage({
   const latitude = parseCoordinate(lat);
   const longitude = parseCoordinate(lng);
   const radiusKm = parseRadiusKm(selectedRadius);
-  const detectedKnownLocation = detectedLocation?.type === "town"
-    ? findKnownLocation(detectedLocation.town, detectedLocation.province)
-    : detectedLocation?.type === "province"
-      ? findKnownLocation(null, detectedLocation.province)
-      : null;
-  const manualKnownLocation = findKnownLocation(location, null);
-  const nearbyCenter = latitude !== null && longitude !== null
-    ? { latitude, longitude }
-    : manualKnownLocation
-      ? { latitude: manualKnownLocation.latitude, longitude: manualKnownLocation.longitude }
-      : detectedKnownLocation
-        ? { latitude: detectedKnownLocation.latitude, longitude: detectedKnownLocation.longitude }
-        : null;
-  const hasNearbyFilter = Boolean(nearbyCenter && radiusKm);
-  const hasLocationContext = Boolean(nearbyCenter);
+  const hasCoordinateLocation = latitude !== null && longitude !== null;
+  const nearbyCenter = hasCoordinateLocation ? { latitude, longitude } : null;
+  const hasExplicitLocationContext = Boolean(nearbyCenter && hasCoordinateLocation);
+  const hasNearbyFilter = Boolean(hasExplicitLocationContext && nearbyCenter && radiusKm);
+  const hasLocationContext = hasExplicitLocationContext;
   const availableSubcategories = category === "all" ? [] : marketplaceSubcategories(category);
   const returnParams = new URLSearchParams();
   if (q) returnParams.set("q", q);
@@ -446,7 +453,7 @@ export default async function MarketplacePage({
   const { data: rawListings } = await listingQuery
     .order("created_at", { ascending: false })
     .range(hasSearch || hasLocationContext ? 0 : offset, hasSearch || hasLocationContext ? 499 : offset + pageSize - 1);
-  const nearbyListings = withListingDistances(rawListings, nearbyCenter, radiusKm);
+  const nearbyListings = withListingDistances(rawListings, hasLocationContext ? nearbyCenter : null, radiusKm);
   const exactSearchListings = hasTextSearch
     ? (nearbyListings ?? []).filter((listing) => exactSearchMatchesListing(listing, searchWithoutLocation))
     : nearbyListings;
@@ -541,10 +548,10 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
-  const featuredListings = withListingDistances(featuredListingRows, nearbyCenter, radiusKm).slice(0, 12);
+  const featuredListings = withListingDistances(featuredListingRows, hasLocationContext ? nearbyCenter : null, radiusKm).slice(0, 12);
   const recommendedListings = (listings ?? []).slice(4, 8);
   const resultLocationLabel = location.trim()
-    || (nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
+    || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
       ? [detectedLocation.town, detectedLocation.province].filter(Boolean).join(", ")
       : detectedLocation?.province)
@@ -578,7 +585,7 @@ export default async function MarketplacePage({
         </p>
       ) : null}
 
-      <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} />
+      <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} showDistance={hasLocationContext} />
 
       <section id="marketplace-categories" className="scroll-mt-28 mb-5 border-b border-slate-200 bg-white pb-5 lg:rounded-md lg:border lg:border-slate-200 lg:p-4 lg:shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -719,7 +726,7 @@ export default async function MarketplacePage({
           <>
             <div id="marketplace-results" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {(pagedListings ?? []).map((listing) => (
-                <MarketplaceHomeListingCard key={listing.id} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} />
+                <MarketplaceHomeListingCard key={listing.id} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} showDistance={hasLocationContext} />
               ))}
             </div>
             {(currentPage > 1 || hasNextPage) ? (
@@ -832,7 +839,7 @@ export default async function MarketplacePage({
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {recommendedListings.map((listing) => (
-              <MarketplaceHomeListingCard key={`recommended-${listing.id}`} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} />
+              <MarketplaceHomeListingCard key={`recommended-${listing.id}`} listing={listing} isSaved={savedListingIds.has(listing.id)} returnPath={returnPath} showDistance={hasLocationContext} />
             ))}
           </div>
         </section>
@@ -949,7 +956,7 @@ export default async function MarketplacePage({
       q={q}
       category={category}
       subcategory={subcategory}
-      location={location || resultLocationLabel}
+      location={hasLocationContext ? (location || resultLocationLabel) : ""}
       latitude={lat}
       longitude={lng}
       radius={selectedRadius}

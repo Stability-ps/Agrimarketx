@@ -91,12 +91,9 @@ export function MarketplaceLocationSelector({
         .slice(0, 6)
     : [];
   const label = location || (latitude && longitude ? publicAreaLabel({ latitude: Number(latitude), longitude: Number(longitude) }) : "");
-  const rememberedLabel = profileFallback?.label || cachedFallback?.label || "";
   const locationButtonText = label
     ? `Showing listings near ${label}`
-    : rememberedLabel
-      ? `Choose location (${rememberedLabel})`
-      : "Showing listings across South Africa";
+    : "Showing listings across South Africa";
 
   useEffect(() => {
     setMounted(true);
@@ -266,11 +263,6 @@ export function MarketplaceLocationSelector({
         applyLocation({ label: nextLabel, ...coords, radius: selectedRadius === "all" ? "25" : selectedRadius });
       },
       () => {
-        if (profileFallback && !location && !latitude && !longitude) {
-          applyLocation(profileFallback);
-          return;
-        }
-
         setStatus(options?.silent ? "" : "Could not access your location. You can still choose a town manually.");
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }

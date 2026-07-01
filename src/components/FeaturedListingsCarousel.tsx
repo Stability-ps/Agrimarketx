@@ -70,10 +70,12 @@ function promoBadge(index: number) {
 
 export function FeaturedListingsCarousel({
   listings,
-  returnPath
+  returnPath,
+  showDistance = false
 }: {
   listings: FeaturedListing[];
   returnPath: string;
+  showDistance?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
@@ -171,7 +173,7 @@ export function FeaturedListingsCarousel({
                   <MapPin size={12} className="shrink-0" />
                   <span className="truncate">{location}</span>
                 </p>
-                {listing.distance_km !== null && listing.distance_km !== undefined ? (
+                {showDistance && listing.distance_km !== null && listing.distance_km !== undefined ? (
                   <p className="mt-1 text-[10px] font-bold text-brand-green sm:text-xs">{formatDistanceKm(listing.distance_km)}</p>
                 ) : null}
                 <p className="mt-1 line-clamp-1 text-[10px] text-slate-500 sm:text-xs lg:text-sm">{marketplaceCategoryLabel(listing.category)}</p>

@@ -91,6 +91,27 @@ export function placeCoordinates(place: any) {
 }
 
 export async function reverseGeocodeCoordinates(coords: { latitude: number; longitude: number }) {
+  try {
+    const params = new URLSearchParams({
+      lat: String(coords.latitude),
+      lng: String(coords.longitude)
+    });
+    const response = await fetch(`/api/location/reverse-geocode?${params.toString()}`);
+
+    if (response.ok) {
+      const payload = await response.json();
+      if (payload?.label) {
+        return {
+          label: String(payload.label),
+          town: String(payload.town ?? ""),
+          province: String(payload.province ?? "")
+        };
+      }
+    }
+  } catch {
+    // Fall through to Maps JavaScript geocoder if the lightweight endpoint is not reachable.
+  }
+
   const google = await loadGoogleMaps();
   const geocoder = new google.maps.Geocoder();
   const response = await geocoder.geocode({

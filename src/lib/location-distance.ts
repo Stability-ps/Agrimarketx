@@ -67,6 +67,14 @@ export function allKnownLocations() {
 }
 
 export function parseCoordinate(value: string | number | null | undefined) {
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
