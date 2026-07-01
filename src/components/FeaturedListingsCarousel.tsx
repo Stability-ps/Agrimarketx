@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { Route } from "next";
 import { MapPin, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
 import { publicStorageUrl } from "@/lib/files";
@@ -163,7 +162,6 @@ export function FeaturedListingsCarousel({
                   <span className="hidden sm:inline">Verified</span>
                 </span>
                 <div className="absolute right-1 top-1 z-20 flex origin-top-right scale-75 gap-1 sm:right-2 sm:top-2 sm:scale-90 lg:scale-100 lg:gap-2">
-                  <MarketplaceShareButton title={listing.title} url={`/marketplace/${listing.id}`} listingId={listing.id} />
                   <SaveListingButton listingId={listing.id} />
                 </div>
               </div>

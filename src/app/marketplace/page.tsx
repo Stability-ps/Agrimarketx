@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { FeaturedListingsCarousel } from "@/components/FeaturedListingsCarousel";
 import { MarketplacePageShell } from "@/components/MarketplaceShell";
-import { MarketplaceShareButton } from "@/components/MarketplaceShareButton";
 import { MoreCategoriesMenu } from "@/components/MoreCategoriesMenu";
 import { SaveListingButton } from "@/components/SaveListingButton";
 import { formatRand } from "@/lib/format";
@@ -532,7 +531,6 @@ function MarketplaceHomeListingCard({
           </span>
         ) : null}
         <div className="absolute right-3 top-3 z-20 flex gap-2">
-          <MarketplaceShareButton title={listing.title} url={`/marketplace/${listing.id}`} listingId={listing.id} />
           <SaveListingButton listingId={listing.id} initiallySaved={isSaved} />
         </div>
       </div>
