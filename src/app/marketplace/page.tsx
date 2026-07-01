@@ -323,6 +323,94 @@ function listingSellerIsVerified(listing: any) {
   return farm?.seller_verification_status === "verified";
 }
 
+function promotedFarm(listing: any) {
+  const farm = Array.isArray(listing.farms) ? listing.farms[0] : listing.farms;
+  return Boolean(farm?.sponsored_partner || farm?.seller_account_role === "sponsored_partner" || farm?.seller_account_role === "advertiser");
+}
+
+function featuredPromotionScore(listing: any) {
+  const details = listing.listing_details as Record<string, unknown> | null | undefined;
+  const packageText = [
+    details?.promotion_package,
+    details?.promotion_type,
+    details?.promotion,
+    details?.advert_package,
+    details?.featured_package
+  ].filter(Boolean).join(" ").toLowerCase();
+  const statusText = String(details?.promotion_status ?? details?.featured_status ?? "").toLowerCase();
+  const endsAt = Date.parse(String(details?.promotion_ends_at ?? details?.promotion_end_date ?? details?.featured_until ?? ""));
+  const promotionExpired = Number.isFinite(endsAt) && endsAt < Date.now();
+  const hasPromotionFlag = Boolean(details?.featured || details?.is_featured || details?.premium || details?.is_premium || details?.urgent || details?.is_urgent);
+  const hasActivePackage = (hasPromotionFlag || /featured|premium|urgent|promoted|sponsored/.test(packageText)) && statusText !== "expired" && !promotionExpired;
+
+  let score = 0;
+
+  if (hasActivePackage) {
+    score += 1000;
+  }
+
+  if (/premium/.test(packageText) || details?.premium || details?.is_premium) {
+    score += 300;
+  }
+
+  if (/featured|promoted|sponsored/.test(packageText) || details?.featured || details?.is_featured) {
+    score += 200;
+  }
+
+  if (/urgent/.test(packageText) || details?.urgent || details?.is_urgent) {
+    score += 100;
+  }
+
+  if (promotedFarm(listing)) {
+    score += 50;
+  }
+
+  const explicitPriority = Number(details?.promotion_priority ?? details?.featured_priority ?? details?.priority);
+
+  return score + (Number.isFinite(explicitPriority) ? explicitPriority : 0);
+}
+
+function featuredPromotionDate(listing: any) {
+  const details = listing.listing_details as Record<string, unknown> | null | undefined;
+  const rawDate = details?.promotion_started_at
+    ?? details?.promotion_start_date
+    ?? details?.featured_started_at
+    ?? details?.featured_from
+    ?? listing.created_at;
+  const timestamp = Date.parse(String(rawDate ?? ""));
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function dailyRotationScore(id: string) {
+  const seed = `${new Date().toISOString().slice(0, 10)}:${id}`;
+  let hash = 0;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+
+  return hash;
+}
+
+function sortFeaturedListings<T extends { id: string; created_at?: string | null }>(listings: T[] | null | undefined) {
+  return [...(listings ?? [])].sort((a: any, b: any) => {
+    const promotionDifference = featuredPromotionScore(b) - featuredPromotionScore(a);
+
+    if (promotionDifference !== 0) {
+      return promotionDifference;
+    }
+
+    const dateDifference = featuredPromotionDate(b) - featuredPromotionDate(a);
+
+    if (dateDifference !== 0) {
+      return dateDifference;
+    }
+
+    return dailyRotationScore(b.id) - dailyRotationScore(a.id);
+  });
+}
+
 function quickInfoForListing(listing: any) {
   const details = listing.listing_details as Record<string, unknown> | null | undefined;
   const animal = Array.isArray(listing.animals) ? listing.animals[0] : listing.animals;
@@ -651,7 +739,7 @@ export default async function MarketplacePage({
     .select(marketplaceListingSelect)
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(hasLocationContext ? 80 : 12);
+    .limit(80);
   const { data: featuredFarmRows } = await supabase
     .from("farms")
     .select("id, name, logo_url, photo_url, location, province, country, seller_verification_status, seller_account_role, seller_type, sponsored_partner, marketplace_listings(id, status)")
@@ -667,13 +755,7 @@ export default async function MarketplacePage({
       ])
     : [{ count: 0 }, { count: 0 }, { count: 0 }, { data: [] }];
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
-  const featuredListings = locationFallbackListings(featuredListingRows, {
-    center: hasLocationContext ? nearbyCenter : null,
-    radiusKm,
-    town: requestedLocation.town,
-    province: requestedLocation.province,
-    useLocation: hasLocationFilter || hasLocationContext
-  }).slice(0, 12);
+  const featuredListings = sortFeaturedListings(featuredListingRows).slice(0, 12);
   const recommendedListings = sortedListings.slice(4, 8);
   const resultLocationLabel = location.trim()
     || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
@@ -697,7 +779,7 @@ export default async function MarketplacePage({
         </p>
       ) : null}
 
-      <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} showDistance={hasLocationContext} />
+      <FeaturedListingsCarousel listings={featuredListings} returnPath={returnPath} showDistance={false} />
 
       <section id="marketplace-categories" className="scroll-mt-28 mb-5 border-b border-slate-200 bg-white pb-5 lg:rounded-md lg:border lg:border-slate-200 lg:p-4 lg:shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-3">
