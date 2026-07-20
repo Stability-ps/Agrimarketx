@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
+  BarChart3,
   Car,
   ChevronDown,
+  FileSearch,
   Heart,
   Home,
   LifeBuoy,
@@ -12,6 +14,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   SlidersHorizontal,
+  Store,
   Tractor,
   Truck,
   Users,
@@ -159,6 +162,14 @@ function exactSearchMatchesListing(listing: any, query: string) {
 
 function listingCountKey(category: string | null | undefined, subcategory?: string | null) {
   return `${category ?? ""}::${subcategory ?? ""}`;
+}
+
+function compactCount(value: number) {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k`;
+  }
+
+  return String(value);
 }
 
 function pageNumber(value: string | undefined) {
@@ -732,6 +743,12 @@ export default async function MarketplacePage({
     town: row.town,
     approximate_location: row.approximate_location
   }));
+  const { data: buyerRequestRows } = await supabase
+    .from("buyer_requests")
+    .select("id, title, category, subcategory, province, town, approximate_location, quantity, budget, urgency, needed_by, created_at")
+    .in("status", ["approved", "published", "matched"])
+    .order("created_at", { ascending: false })
+    .limit(4);
   const { data: featuredListingRows } = await supabase
     .from("marketplace_listings")
     .select(marketplaceListingSelect)
@@ -755,6 +772,23 @@ export default async function MarketplacePage({
   const activeSellerTotal = new Set((activeSellersCount.data ?? []).map((item: any) => item.seller_farm_id).filter(Boolean)).size;
   const featuredListings = sortFeaturedListings(featuredListingRows).slice(0, 12);
   const recommendedListings = sortedListings.slice(4, 8);
+  const homepageWantedListings = (buyerRequestRows ?? []).length > 0
+    ? (buyerRequestRows ?? []).map((wanted) => ({
+        title: wanted.title,
+        location: wanted.approximate_location || [wanted.town, wanted.province].filter(Boolean).join(", ") || "South Africa",
+        budget: wanted.budget || "Quote requested",
+        quantity: wanted.quantity || "Quantity open",
+        href: `/marketplace/wanted?request=${wanted.id}`,
+        categoryLabel: marketplaceCategoryLabel(wanted.category),
+        urgency: wanted.urgency,
+        icon: normalizeMarketplaceCategory(wanted.category) === "livestock" ? PawPrint : Package
+      }))
+    : wantedListings.map((wanted) => ({
+        ...wanted,
+        href: `/marketplace/wanted?request=${encodeURIComponent(wanted.title)}`,
+        categoryLabel: "Buyer request",
+        urgency: "needed_soon"
+      }));
   const resultLocationLabel = location.trim()
     || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
@@ -787,6 +821,12 @@ export default async function MarketplacePage({
         <div className="grid grid-cols-5 gap-x-1.5 gap-y-3 lg:grid-cols-9 lg:gap-3">
           {categoryShortcuts.map((item) => {
             const Icon = item.icon;
+            const shortcutCategory = item.href.includes("category=")
+              ? item.href.split("category=")[1]?.split("&")[0]
+              : "";
+            const shortcutCount = shortcutCategory === "all"
+              ? (listingCountRows ?? []).length
+              : listingCounts.get(listingCountKey(shortcutCategory)) ?? 0;
 
             if (item.label === "More Categories") {
               return (
@@ -816,11 +856,39 @@ export default async function MarketplacePage({
                 }`}>
                   <Icon size={20} />
                 </span>
-                {item.label}
+                <span>{item.label}</span>
+                <span className={`text-[9px] font-black ${item.href.includes(`category=${category}`) && !subcategory ? "text-white/80" : "text-slate-500"}`}>
+                  {compactCount(shortcutCount)} listings
+                </span>
               </Link>
             );
           })}
         </div>
+      </section>
+
+      <section className="mb-5 grid gap-3 rounded-xl border border-green-100 bg-green-50 p-4 lg:grid-cols-[1.2fr_1fr_1fr] lg:items-center">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-brand-green">Request quotes from sellers</p>
+          <h2 className="mt-1 text-lg font-bold text-brand-navy">Cannot find what you need?</h2>
+          <p className="mt-1 text-sm leading-6 text-green-950">
+            Post a wanted request for livestock, feed, equipment, crops or services and let matching sellers respond.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold text-green-950">
+          <div className="rounded-md bg-white p-3">
+            <FileSearch className="mx-auto mb-1 text-brand-green" size={20} />
+            Buyer request
+          </div>
+          <div className="rounded-md bg-white p-3">
+            <Store className="mx-auto mb-1 text-brand-green" size={20} />
+            Seller quotes
+          </div>
+          <div className="rounded-md bg-white p-3">
+            <ShieldCheck className="mx-auto mb-1 text-brand-green" size={20} />
+            Admin review
+          </div>
+        </div>
+        <Link href="/marketplace/wanted" className="primary-button justify-center">Tell us what you need</Link>
       </section>
 
       <details className="group mb-5 rounded-xl border border-slate-200 bg-white shadow-sm lg:p-4">
@@ -1035,7 +1103,7 @@ export default async function MarketplacePage({
           <Link href="/marketplace/wanted" className="text-sm font-bold text-brand-green">View all</Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {wantedListings.map((wanted) => {
+          {homepageWantedListings.map((wanted) => {
             const Icon = wanted.icon;
             return (
               <article key={wanted.title} className="rounded-md border border-slate-200 bg-white p-4">
@@ -1044,17 +1112,44 @@ export default async function MarketplacePage({
                     <Icon size={22} />
                   </span>
                   <div>
-                    <p className="text-xs font-semibold text-slate-500">Wanted</p>
+                    <p className="text-xs font-semibold text-slate-500">{wanted.categoryLabel}</p>
                     <h3 className="font-bold text-brand-navy">{wanted.title}</h3>
                     <p className="mt-1 text-sm text-slate-600">{wanted.location}</p>
                     <p className="mt-2 text-sm font-semibold text-slate-700">{wanted.budget}</p>
                     <p className="mt-1 text-xs text-slate-500">Quantity: {wanted.quantity}</p>
+                    <p className="mt-2 inline-flex rounded-full bg-green-50 px-2 py-1 text-[11px] font-bold capitalize text-brand-green">
+                      {String(wanted.urgency ?? "needed_soon").replace(/_/g, " ")}
+                    </p>
                   </div>
                 </div>
-                <Link href={`/marketplace/wanted?request=${encodeURIComponent(wanted.title)}` as never} className="secondary-button mt-4 w-full">View Details</Link>
+                <Link href={wanted.href as never} className="secondary-button mt-4 w-full">View Details</Link>
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-md border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-brand-navy">Marketplace Pulse</h2>
+            <p className="mt-1 text-sm text-slate-600">Quick signals to help farmers decide what to browse, list or request next.</p>
+          </div>
+          <BarChart3 className="hidden text-brand-green sm:block" size={26} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { title: "Strong buyer demand", body: "Use Wanted Listings to request livestock, feed, machinery or services from sellers.", href: "/marketplace/wanted", action: "Post request" },
+            { title: "Verified seller discovery", body: "Browse farms, suppliers and service providers with active marketplace activity.", href: "/farms", action: "View sellers" },
+            { title: "Equipment and vehicles", body: "Bakkies, tractors, trailers and machinery are grouped for easier farm sourcing.", href: "/marketplace?category=vehicles", action: "Browse vehicles" },
+            { title: "Safe trading", body: "Keep contact private until detail pages and use reports when something looks suspicious.", href: "/safety-advice", action: "Read safety tips" }
+          ].map((item) => (
+            <Link key={item.title} href={item.href as never} className="rounded-md border border-slate-200 bg-[#F8F9FA] p-4 transition hover:border-brand-green hover:bg-green-50">
+              <h3 className="font-bold text-brand-navy">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+              <span className="mt-3 inline-flex text-sm font-bold text-brand-green">{item.action}</span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -1170,6 +1265,8 @@ export default async function MarketplacePage({
         <div className="flex flex-wrap gap-4">
           <Link href="/help-centre" className="font-semibold hover:text-brand-green">Help Centre</Link>
           <Link href="/safety-advice" className="font-semibold hover:text-brand-green">Safety Advice</Link>
+          <Link href="/marketplace/wanted" className="font-semibold hover:text-brand-green">Request Quotes</Link>
+          <Link href="/farms" className="font-semibold hover:text-brand-green">Verified Sellers</Link>
           <Link href="/marketplace-rules" className="font-semibold hover:text-brand-green">Marketplace Rules</Link>
           <Link href="/farm-management" className="font-semibold hover:text-brand-green">Farm Management</Link>
           <Link href="/legal" className="font-semibold hover:text-brand-green">Legal</Link>

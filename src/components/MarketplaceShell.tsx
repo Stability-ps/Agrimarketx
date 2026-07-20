@@ -53,6 +53,8 @@ export function MarketplaceHeader({
         <nav className="hidden gap-4 text-xs font-bold uppercase tracking-wide text-slate-500 lg:col-span-3 lg:flex">
           <Link href="/" className="hover:text-brand-green">Home</Link>
           <Link href="/marketplace" className="hover:text-brand-green">Marketplace</Link>
+          <Link href="/marketplace/wanted" className="hover:text-brand-green">Request Quotes</Link>
+          <Link href="/farms" className="hover:text-brand-green">Verified Sellers</Link>
           <Link href="/farm-management" className="hover:text-brand-green">Farm Management</Link>
         </nav>
       </div>
