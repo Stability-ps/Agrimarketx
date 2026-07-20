@@ -517,6 +517,7 @@ export async function reportMarketplaceListing(formData: FormData) {
   const supabase = await createClient();
   const listingId = optionalString(formData.get("listingId"));
   const reason = optionalString(formData.get("reason"));
+  const notes = optionalString(formData.get("notes"));
   const redirectTo = optionalString(formData.get("redirectTo"));
   const {
     data: { user }
@@ -529,7 +530,7 @@ export async function reportMarketplaceListing(formData: FormData) {
   const { error } = await supabase.from("disputes").insert({
     listing_id: listingId,
     opened_by: user?.id ?? null,
-    summary: reason
+    summary: notes ? `${reason}: ${notes}` : reason
   });
 
   if (error) {
