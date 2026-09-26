@@ -176,6 +176,9 @@ export async function createAccount(formData: FormData) {
     }
 
     if (isConfirmationDeliveryFailure(error)) {
+      let createdByAdmin = false;
+      let adminFailureMessage = "";
+
       try {
         const admin = createAdminClient();
         const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
@@ -191,31 +194,34 @@ export async function createAccount(formData: FormData) {
           }
         });
 
-        if (!adminError && adminData.user) {
-          go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. You can sign in now.")}&next=${encodeURIComponent(next)}`);
-        }
+        createdByAdmin = !adminError && Boolean(adminData.user);
+        adminFailureMessage = readableAuthError(adminError);
+      } catch (adminError) {
+        adminFailureMessage = readableAuthError(adminError);
+      }
 
-        const adminMessage = readableAuthError(adminError);
-        if (adminMessage.toLowerCase().includes("already") || adminMessage.toLowerCase().includes("registered") || adminMessage.toLowerCase().includes("exists")) {
-          signupError({
-            accountType,
-            duplicate: true,
-            email,
-            fullName,
-            message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
-            phone,
-            sellerType
-          });
-        }
-      } catch {
-        // Fall through to the friendly error below.
+      if (createdByAdmin) {
+        go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. You can sign in now.")}&next=${encodeURIComponent(next)}`);
+      }
+
+      const lowerAdminMessage = adminFailureMessage.toLowerCase();
+      if (lowerAdminMessage.includes("already") || lowerAdminMessage.includes("registered") || lowerAdminMessage.includes("exists")) {
+        signupError({
+          accountType,
+          duplicate: true,
+          email,
+          fullName,
+          message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
+          phone,
+          sellerType
+        });
       }
 
       signupError({
         accountType,
         email,
         fullName,
-        message: "We could not send the confirmation email. Please try again shortly.",
+        message: adminFailureMessage || "We could not create your account. Please try again shortly.",
         phone,
         sellerType
       });
