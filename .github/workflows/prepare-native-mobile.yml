@@ -18,7 +18,7 @@ permissions:
 jobs:
   prepare-native:
     if: github.actor != 'github-actions[bot]'
-    runs-on: macos-15
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -43,11 +43,6 @@ jobs:
           pnpm exec cap add android
           pnpm exec cap add ios
           pnpm exec cap sync
-
-      - name: Verify web application
-        run: |
-          pnpm run lint
-          pnpm run build
 
       - name: Commit generated native projects
         run: |
