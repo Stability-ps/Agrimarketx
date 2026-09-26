@@ -1,0 +1,65 @@
+name: Prepare native mobile projects
+
+on:
+  push:
+    branches:
+      - mobile/capacitor-ios-android
+    paths-ignore:
+      - "android/**"
+      - "ios/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-native:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+
+      - name: Install existing dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Capacitor native platforms and plugins
+        run: |
+          pnpm add -D @capacitor/android@^8.4.1 @capacitor/ios@^8.4.1
+          pnpm add @capacitor/app @capacitor/splash-screen @capacitor/status-bar @capacitor/share
+
+      - name: Add Android and iOS projects
+        run: |
+          rm -rf android ios
+          pnpm exec cap add android
+          pnpm exec cap add ios
+          pnpm exec cap sync
+
+      - name: Verify web application
+        run: |
+          pnpm run lint
+          pnpm run build
+
+      - name: Commit generated native projects
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json pnpm-lock.yaml android ios
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: generate Capacitor iOS and Android projects [skip ci]"
+          git push
