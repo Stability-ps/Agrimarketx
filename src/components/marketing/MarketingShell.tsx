@@ -16,6 +16,7 @@ const publicInfoLinks: { href: string; label: string }[] = [
   { href: "/marketplace-rules", label: "Marketplace Rules" },
   { href: "/legal", label: "Legal" },
   { href: "/privacy", label: "Privacy Policy" },
+  { href: "/account-deletion", label: "Delete Account" },
   { href: "/about", label: "About AgriMarketX" },
   { href: "/contact", label: "Contact" }
 ];
