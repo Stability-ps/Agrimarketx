@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { findAuthUserByEmail } from "@/lib/auth-users";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 async function getBaseUrl() {
@@ -47,6 +48,33 @@ function signupError({
   }
 
   go(`/signup?${params.toString()}`);
+}
+
+function readableAuthError(error: unknown) {
+  if (error instanceof Error && error.message.trim() && error.message.trim() !== "{}") {
+    return error.message;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = String((error as { message?: unknown }).message ?? "").trim();
+    if (message && message !== "{}") {
+      return message;
+    }
+  }
+
+  return "We could not create your account. Please try again.";
+}
+
+function isConfirmationDeliveryFailure(error: unknown) {
+  const message = readableAuthError(error).toLowerCase();
+
+  return (
+    message.includes("smtp") ||
+    message.includes("authentication failed") ||
+    message.includes("error sending confirmation") ||
+    message.includes("confirmation email") ||
+    message.includes("unexpected_failure")
+  );
 }
 
 function validPassword(password: string) {
@@ -128,7 +156,8 @@ export async function createAccount(formData: FormData) {
   });
 
   if (error) {
-    const lowerMessage = error.message.toLowerCase();
+    const errorMessage = readableAuthError(error);
+    const lowerMessage = errorMessage.toLowerCase();
 
     if (lowerMessage.includes("already") || lowerMessage.includes("registered") || lowerMessage.includes("exists")) {
       signupError({
@@ -142,7 +171,53 @@ export async function createAccount(formData: FormData) {
       });
     }
 
-    signupError({ accountType, email, fullName, message: error.message, phone, sellerType });
+    if (isConfirmationDeliveryFailure(error)) {
+      try {
+        const admin = createAdminClient();
+        const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: fullName,
+            phone,
+            account_role: accountRole,
+            account_type_selected: true,
+            seller_type: sellerType
+          }
+        });
+
+        if (!adminError && adminData.user) {
+          go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. You can sign in now.")}&next=${encodeURIComponent(next)}`);
+        }
+
+        const adminMessage = readableAuthError(adminError);
+        if (adminMessage.toLowerCase().includes("already") || adminMessage.toLowerCase().includes("registered") || adminMessage.toLowerCase().includes("exists")) {
+          signupError({
+            accountType,
+            duplicate: true,
+            email,
+            fullName,
+            message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
+            phone,
+            sellerType
+          });
+        }
+      } catch {
+        // Fall through to the friendly error below.
+      }
+
+      signupError({
+        accountType,
+        email,
+        fullName,
+        message: "We could not send the confirmation email. Please try again shortly.",
+        phone,
+        sellerType
+      });
+    }
+
+    signupError({ accountType, email, fullName, message: errorMessage, phone, sellerType });
   }
 
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
