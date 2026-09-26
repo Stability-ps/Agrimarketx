@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { MobileBackHomeNav } from "@/components/MobileBackHomeNav";
+import { MobileBackHomeNav } from "@/components/MobileBackHomeNav";\nimport { NativeAppBridge } from "@/components/NativeAppBridge";
 import { PwaRegistrar } from "@/components/PwaRegistrar";
 import "./globals.css";
 
