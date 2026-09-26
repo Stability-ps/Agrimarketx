@@ -9,6 +9,7 @@ import {
   Heart,
   Info,
   LogOut,
+  Trash2,
   MessageCircle,
   Shield,
   Settings,
@@ -115,6 +116,7 @@ export default async function AccountPage() {
           <AccountMenuGroup>
             <AccountMenuItem href="/settings" icon={Settings} title="Profile settings" description="Edit your photo, name, phone, WhatsApp and farm details." />
             <AccountMenuItem href="/account/preferences" icon={Shield} title="Security and preferences" description="Notification, privacy and account preferences." />
+            <AccountMenuItem href="/account-deletion" icon={Trash2} title="Delete account" description="Request deletion of your AgriMarketX account and associated personal data." />
             <AccountMenuItem href="/account/type" icon={Store} title="Change account type" description="Switch between buyer-only, individual seller and business seller modes." />
           </AccountMenuGroup>
         </div>
