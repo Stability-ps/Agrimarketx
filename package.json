@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "cap:sync": "cap sync",
     "cap:open:android": "cap open android",
-    "cap:open:ios": "cap open ios"
+    "cap:open:ios": "cap open ios",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "mobile:prepare": "cap sync"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.1",
@@ -19,7 +22,10 @@
     "next": "^15.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "stripe": "^17.3.1"
+    "stripe": "^17.3.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
@@ -32,6 +38,8 @@
     "eslint-config-next": "15.0.3",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
   }
 }
