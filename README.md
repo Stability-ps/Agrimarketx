@@ -39,3 +39,4 @@ supabase/seed/default_species.sql
 ```
 
 The schema includes automatic animal age categorisation from species settings, plus RLS helper functions for farm membership and role-based access.
+
