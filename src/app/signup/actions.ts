@@ -67,8 +67,12 @@ function readableAuthError(error: unknown) {
 
 function isConfirmationDeliveryFailure(error: unknown) {
   const message = readableAuthError(error).toLowerCase();
+  const code = error && typeof error === "object" && "code" in error
+    ? String((error as { code?: unknown }).code ?? "").toLowerCase()
+    : "";
 
   return (
+    code === "unexpected_failure" ||
     message.includes("smtp") ||
     message.includes("authentication failed") ||
     message.includes("error sending confirmation") ||
