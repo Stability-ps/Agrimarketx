@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cleanFileName, isImageFile } from "@/lib/files";
@@ -99,7 +100,7 @@ export async function createBuyerRequest(formData: FormData) {
     .single();
 
   if (error) {
-    go(`/marketplace/wanted?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace/wanted?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   try {
@@ -150,7 +151,7 @@ export async function respondToBuyerRequest(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace/wanted?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace/wanted?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace/wanted");
