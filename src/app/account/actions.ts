@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +28,7 @@ export async function submitSellerVerification() {
     .eq("id", farm.id);
 
   if (error) {
-    go(`/account/verification?message=${encodeURIComponent(error.message)}`);
+    go(`/account/verification?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   await supabase.from("app_notifications").insert({
@@ -62,7 +63,7 @@ export async function updateMyListingStatus(formData: FormData) {
     .eq("seller_farm_id", farm.id);
 
   if (error) {
-    go(`/account/listings?message=${encodeURIComponent(error.message)}`);
+    go(`/account/listings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/account/listings");
