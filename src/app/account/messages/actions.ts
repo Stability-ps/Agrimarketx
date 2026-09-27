@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -37,7 +38,7 @@ export async function startMarketplaceConversation(formData: FormData) {
     .maybeSingle();
 
   if (listingError || !listing) {
-    go(`/marketplace?message=${encodeURIComponent(listingError?.message ?? "Listing not found.")}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(listingError, "Listing not found."))}`);
   }
 
   await supabase.rpc("increment_listing_metric", {
@@ -59,7 +60,7 @@ export async function startMarketplaceConversation(formData: FormData) {
     .single();
 
   if (error || !conversation) {
-    go(`/marketplace?message=${encodeURIComponent(error?.message ?? "Could not start chat.")}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not start chat."))}`);
   }
 
   await supabase.from("conversation_participants").insert([
@@ -106,7 +107,7 @@ export async function sendConversationMessage(formData: FormData) {
   });
 
   if (error) {
-    go(`/account/messages?conversation=${conversationId}&message=${encodeURIComponent(error.message)}`);
+    go(`/account/messages?conversation=${conversationId}&message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
@@ -147,7 +148,7 @@ export async function createSupportTicket(formData: FormData) {
     .single();
 
   if (error || !ticket) {
-    go(`/account/support/report-problem?message=${encodeURIComponent(error?.message ?? "Could not create ticket.")}`);
+    go(`/account/support/report-problem?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not create ticket."))}`);
   }
 
   const { data: conversation } = await supabase
