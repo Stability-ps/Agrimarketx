@@ -10,10 +10,12 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      // Android already shows the native launch screen through
+      // AppTheme.NoActionBarLaunch. Do not add a second Capacitor
+      // splash overlay after the WebView starts rendering.
+      launchShowDuration: 0,
+      launchAutoHide: true,
       backgroundColor: "#ffffff",
-      androidSplashResourceName: "splash",
-      androidScaleType: "CENTER_CROP",
       showSpinner: false
     }
   }
