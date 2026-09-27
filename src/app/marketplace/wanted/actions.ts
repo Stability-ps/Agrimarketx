@@ -1,9 +1,10 @@
 "use server";
 
 import { userSafeErrorMessage } from "@/lib/user-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cleanFileName, isImageFile } from "@/lib/files";
+import { cleanFileName, validateUpload } from "@/lib/files";
 import { marketplaceSubcategories, normalizeMarketplaceCategory } from "@/lib/marketplace-categories";
 import { requireVerifiedSellerForWantedRequest } from "@/lib/seller-verification";
 import { createClient } from "@/lib/supabase/server";
@@ -29,13 +30,16 @@ async function uploadWantedPhotos(supabase: Awaited<ReturnType<typeof createClie
   }
 
   for (const [index, file] of images.entries()) {
-    if (!isImageFile(file)) {
-      throw new Error("Please upload image files only.");
+    // Validate size and real content server-side (the browser-supplied MIME
+    // type is not trusted).
+    const validation = await validateUpload(file, "image");
+    if (!validation.ok) {
+      throw new Error(validation.message);
     }
 
     const path = `buyer-requests/${requestId}/${Date.now()}-${index}-${cleanFileName(file.name)}`;
     const { error: uploadError } = await supabase.storage.from("farm-assets").upload(path, file, {
-      contentType: file.type,
+      contentType: validation.contentType,
       cacheControl: "31536000",
       upsert: false
     });
@@ -109,7 +113,7 @@ export async function createBuyerRequest(formData: FormData) {
     go(`/marketplace/wanted?message=${encodeURIComponent(photoError instanceof Error ? photoError.message : "Could not upload request photos.")}`);
   }
 
-  await supabase.from("app_notifications").insert({
+  await createAdminClient().from("app_notifications").insert({
     title: "New buyer request",
     body: `${title} is waiting for review.`,
     type: "marketplace",

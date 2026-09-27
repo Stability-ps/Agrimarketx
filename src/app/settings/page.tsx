@@ -5,6 +5,7 @@ import { formatRand } from "@/lib/format";
 import { supplyCategories } from "@/lib/supply-categories";
 import { createClient } from "@/lib/supabase/server";
 import { getOptionalCurrentFarm } from "@/lib/farm-server";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
 import {
   createAdditionalFarm,
   deleteFarmLogo,
@@ -32,13 +33,11 @@ export default async function SettingsPage({
     .select("full_name, email, phone, whatsapp_number, avatar_url")
     .eq("id", user?.id ?? "")
     .maybeSingle();
-  const { data: farmRecord } = farm?.id
-    ? await supabase
-        .from("farms")
-        .select("name, owner_name, owner_phone, location, province, country, gps_latitude, gps_longitude, size_hectares, farm_type, facilities, description, logo_url, supply_categories")
-        .eq("id", farm.id)
-        .maybeSingle()
-    : { data: null };
+  // The current farm is membership-verified, so its private fields may be
+  // read with the service role (they are hidden from normal clients).
+  const farmRecord = farm?.id
+    ? await readVerifiedFarmPrivateFields<any>(farm.id, "name, owner_name, owner_phone, location, province, country, gps_latitude, gps_longitude, size_hectares, farm_type, facilities, description, logo_url, supply_categories")
+    : null;
   const { data: farmMemberships } = await supabase
     .from("farm_members")
     .select("role, farm_id, farms(id, name, location, province, country, logo_url)")

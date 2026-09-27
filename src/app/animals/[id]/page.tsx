@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getListingContact } from "@/lib/listing-contact";
 import { notFound } from "next/navigation";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { DateField } from "@/components/DateField";
@@ -140,15 +141,20 @@ export default async function AnimalProfilePage({
     .order("created_at", { ascending: false })
     .limit(5);
 
-  const { data: activeListing } = await supabase
+  const { data: activeListingRow } = await supabase
     .from("marketplace_listings")
-    .select("id, title, description, price, status, province, town, approximate_location, price_negotiable, seller_contact_name, seller_contact_phone, seller_contact_whatsapp, seller_contact_email, preferred_contact_method")
+    .select("id, title, description, price, status, province, town, approximate_location, price_negotiable, preferred_contact_method")
     .eq("animal_id", id)
     .eq("seller_farm_id", farm.id)
     .in("status", ["draft", "active", "reserved"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  // The listing belongs to the member's own (verified) farm, so its private
+  // contact fields can be loaded server-side to pre-fill the edit form.
+  const activeListing = activeListingRow
+    ? { ...activeListingRow, ...(await getListingContact(activeListingRow.id, { viewerIsSeller: true })) }
+    : null;
 
   const { data: activeTransfer } = await supabase
     .from("ownership_transfers")

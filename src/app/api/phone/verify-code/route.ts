@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { checkTwilioVerifyCode } from "@/lib/twilio-verify";
@@ -45,6 +46,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Sign in before verifying your phone number." }, { status: 401 });
+  }
+
+  if (!(await checkRateLimit("phoneOtpVerify", user.id))) {
+    return NextResponse.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const body = await request.json().catch(() => ({}));

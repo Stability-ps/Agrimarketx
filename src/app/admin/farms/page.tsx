@@ -1,10 +1,10 @@
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AdminNav } from "@/components/AdminNav";
-import { createClient } from "@/lib/supabase/server";
+import { requirePlatformAdmin } from "@/lib/privileged-reads";
 
 export default async function AdminFarmsPage() {
-  const supabase = await createClient();
-  const { data: farms } = await supabase
+  const { admin } = await requirePlatformAdmin();
+  const { data: farms } = await admin
     .from("farms")
     .select("id, name, owner_name, owner_phone, location, province, country, farm_type, size_hectares, logo_url, created_at")
     .order("created_at", { ascending: false })

@@ -1,10 +1,12 @@
 "use server";
 
 import { userSafeErrorMessage } from "@/lib/user-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentFarm } from "@/lib/farm-server";
+import { recordListingMetric } from "@/lib/listing-metrics";
 
 function go(path: string): never {
   redirect(path as never);
@@ -31,7 +33,7 @@ export async function submitSellerVerification() {
     go(`/account/verification?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
-  await supabase.from("app_notifications").insert({
+  await createAdminClient().from("app_notifications").insert({
     title: "Seller verification submitted",
     body: `${farm.name} sent a seller verification application.`,
     type: "verification",
@@ -81,10 +83,7 @@ export async function recordListingContactClick(formData: FormData) {
     go("/marketplace");
   }
 
-  await supabase.rpc("increment_listing_metric", {
-    listing_id: listingId,
-    metric
-  });
+  await recordListingMetric(listingId, metric);
 
   revalidatePath("/marketplace");
   go(redirectTo || `/marketplace?contact=${listingId}#listing-${listingId}`);
@@ -106,7 +105,7 @@ export async function toggleFarmFollow(formData: FormData) {
     await supabase.from("farm_followers").delete().eq("farm_id", farmId).eq("user_id", user.id);
   } else {
     await supabase.from("farm_followers").upsert({ farm_id: farmId, user_id: user.id }, { onConflict: "farm_id,user_id" });
-    await supabase.from("app_notifications").insert({
+    await createAdminClient().from("app_notifications").insert({
       farm_id: farmId,
       title: "New farm follower",
       body: "Someone followed your farm profile.",

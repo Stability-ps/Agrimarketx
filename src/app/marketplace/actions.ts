@@ -1,13 +1,17 @@
 "use server";
 
 import { userSafeErrorMessage } from "@/lib/user-errors";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cleanFileName, isImageFile } from "@/lib/files";
+import { cleanFileName, validateUpload } from "@/lib/files";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { marketplacePhotoLimit, marketplaceSubcategories, normalizeMarketplaceCategory } from "@/lib/marketplace-categories";
 import { requireApprovedSellerVerification } from "@/lib/seller-verification";
+import { recordListingMetric } from "@/lib/listing-metrics";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
 
 function go(path: string): never {
   redirect(path as never);
@@ -28,6 +32,8 @@ function coordinateValue(value: FormDataEntryValue | null) {
   return Number.isFinite(number) ? number : null;
 }
 
+const PRIVATE_DETAIL_KEY_PATTERN = /phone|whatsapp|email|address|latitude|longitude|^lat$|^lng$|gps|contact|id_number|registration/i;
+
 function detailsFromForm(formData: FormData) {
   const details: Record<string, string> = {};
 
@@ -38,6 +44,12 @@ function detailsFromForm(formData: FormData) {
 
     const detailKey = key.replace("detail_", "");
     const detailValue = optionalString(value);
+
+    // listing_details is public; never let a crafted form smuggle contact or
+    // exact-location data into it (those have dedicated private columns).
+    if (PRIVATE_DETAIL_KEY_PATTERN.test(detailKey)) {
+      continue;
+    }
 
     if (detailValue) {
       details[detailKey] = detailValue;
@@ -69,11 +81,9 @@ async function registeredSellerContact(supabase: Awaited<ReturnType<typeof creat
     .select("full_name, email, phone, whatsapp_number")
     .eq("id", user?.id ?? "")
     .maybeSingle();
-  const { data: farm } = await supabase
-    .from("farms")
-    .select("owner_name, owner_phone")
-    .eq("id", farmId)
-    .maybeSingle();
+  // farmId comes from getCurrentFarm() (membership-verified); owner contact
+  // fields are private columns, so read them with the service role.
+  const farm = await readVerifiedFarmPrivateFields<{ owner_name: string | null; owner_phone: string | null }>(farmId, "owner_name, owner_phone");
 
   return {
     seller_contact_name: profile?.full_name || farm?.owner_name || user?.email || null,
@@ -96,13 +106,16 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
   }
 
   for (const [index, file] of images.entries()) {
-    if (!isImageFile(file)) {
-      throw new Error("Please upload image files only.");
+    // Validate size and real content server-side (the browser-supplied MIME
+    // type is not trusted).
+    const validation = await validateUpload(file, "image");
+    if (!validation.ok) {
+      throw new Error(validation.message);
     }
 
     const path = `listings/${listingId}/${Date.now()}-${index}-${cleanFileName(file.name)}`;
     const { error: uploadError } = await supabase.storage.from("farm-assets").upload(path, file, {
-      contentType: file.type,
+      contentType: validation.contentType,
       cacheControl: "31536000",
       upsert: false
     });
@@ -335,7 +348,11 @@ export async function sendMarketplaceEnquiry(formData: FormData) {
     go(`/marketplace?message=${encodeURIComponent("This listing is no longer available.")}`);
   }
 
-  const { error } = await supabase.from("marketplace_enquiries").insert({
+  if (!(await checkRateLimit("guestEnquiry", user?.id))) {
+    go(`/marketplace/${listingId}?message=${encodeURIComponent(RATE_LIMIT_MESSAGE)}`);
+  }
+
+  const { error } = await createAdminClient().from("marketplace_enquiries").insert({
     listing_id: listingId,
     seller_farm_id: listing.seller_farm_id,
     buyer_user_id: user?.id ?? null,
@@ -366,6 +383,10 @@ export async function sendGuestMarketplaceMessage(formData: FormData) {
     go(`/marketplace/${listingId ?? ""}?message=${encodeURIComponent("Add your name, phone or email, and a short message.")}`);
   }
 
+  if (!(await checkRateLimit("guestEnquiry"))) {
+    go(`/marketplace/${listingId}?message=${encodeURIComponent(RATE_LIMIT_MESSAGE)}`);
+  }
+
   const { data: listing } = await supabase
     .from("marketplace_listings")
     .select("id, title, seller_farm_id")
@@ -377,7 +398,7 @@ export async function sendGuestMarketplaceMessage(formData: FormData) {
     go(`/marketplace?message=${encodeURIComponent("This listing is no longer available.")}`);
   }
 
-  const { error } = await supabase.from("marketplace_enquiries").insert({
+  const { error } = await createAdminClient().from("marketplace_enquiries").insert({
     listing_id: listing.id,
     seller_farm_id: listing.seller_farm_id,
     buyer_user_id: null,
@@ -392,12 +413,9 @@ export async function sendGuestMarketplaceMessage(formData: FormData) {
     go(`/marketplace/${listing.id}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
-  await supabase.rpc("increment_listing_metric", {
-    listing_id: listing.id,
-    metric: "chat"
-  });
+  await recordListingMetric(listing.id, "chat");
 
-  await supabase.from("app_notifications").insert({
+  await createAdminClient().from("app_notifications").insert({
     farm_id: listing.seller_farm_id,
     title: "New guest marketplace enquiry",
     body: `${buyerName} sent a message about ${listing.title}.`,
@@ -526,6 +544,10 @@ export async function reportMarketplaceListing(formData: FormData) {
 
   if (!listingId || !reason) {
     go("/marketplace");
+  }
+
+  if (!(await checkRateLimit("listingReport", user?.id))) {
+    go(`/marketplace/${listingId}?message=${encodeURIComponent(RATE_LIMIT_MESSAGE)}`);
   }
 
   const { error } = await supabase.from("disputes").insert({

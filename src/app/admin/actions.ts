@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createDiditVerificationSession } from "@/lib/didit";
-import { createClient } from "@/lib/supabase/server";
+import { requirePlatformAdmin } from "@/lib/privileged-reads";
 
 function go(path: string): never {
   redirect(path as never);
@@ -17,11 +17,10 @@ function textValue(value: FormDataEntryValue | null) {
 }
 
 export async function approveMarketplaceListing(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase, user } = await requirePlatformAdmin();
   const listingId = textValue(formData.get("listingId"));
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
 
   if (!listingId || !user) {
     go("/admin/listings");
@@ -65,12 +64,11 @@ export async function approveMarketplaceListing(formData: FormData) {
 }
 
 export async function rejectMarketplaceListing(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase, user } = await requirePlatformAdmin();
   const listingId = textValue(formData.get("listingId"));
   const reason = textValue(formData.get("reason")) ?? "Listing rejected by admin.";
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
 
   if (!listingId || !user) {
     go("/admin/listings");
@@ -114,7 +112,9 @@ export async function rejectMarketplaceListing(formData: FormData) {
 }
 
 export async function removeMarketplaceListing(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase } = await requirePlatformAdmin();
   const listingId = textValue(formData.get("listingId"));
   const reason = textValue(formData.get("reason")) ?? "Removed by admin.";
 
@@ -157,7 +157,9 @@ export async function removeMarketplaceListing(formData: FormData) {
 }
 
 export async function updateDisputeStatus(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase } = await requirePlatformAdmin();
   const disputeId = textValue(formData.get("disputeId"));
   const status = textValue(formData.get("status")) ?? "reviewing";
 
@@ -179,7 +181,9 @@ export async function updateDisputeStatus(formData: FormData) {
 }
 
 export async function removeReportedListing(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase } = await requirePlatformAdmin();
   const listingId = textValue(formData.get("listingId"));
   const disputeId = textValue(formData.get("disputeId"));
   const adminNote = textValue(formData.get("adminNote"));
@@ -213,7 +217,9 @@ export async function removeReportedListing(formData: FormData) {
 }
 
 export async function updateSellerVerification(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase } = await requirePlatformAdmin();
   const farmId = textValue(formData.get("farmId"));
   const action = textValue(formData.get("action")) ?? "save";
   const requestedStatus = textValue(formData.get("status"));
@@ -388,13 +394,12 @@ export async function updateSellerVerification(formData: FormData) {
 }
 
 export async function updateBuyerRequestStatus(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase, user } = await requirePlatformAdmin();
   const requestId = textValue(formData.get("requestId"));
   const status = textValue(formData.get("status")) ?? "pending_review";
   const adminNote = textValue(formData.get("adminNote"));
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
 
   if (!requestId || !user) {
     go("/admin/wanted-requests");

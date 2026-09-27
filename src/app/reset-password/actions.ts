@@ -1,25 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { passwordPolicyError } from "@/lib/password-policy";
 import { createClient } from "@/lib/supabase/server";
 
-function validPassword(password: string) {
-  if (password.length < 8) {
-    return "Password must be at least 8 characters.";
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    return "Password must have at least one uppercase character.";
-  }
-
-  return null;
-}
 
 export async function updatePassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  const passwordMessage = validPassword(password);
+  const passwordMessage = passwordPolicyError(password);
   if (passwordMessage) {
     redirect(`/reset-password?message=${encodeURIComponent(passwordMessage)}` as never);
   }

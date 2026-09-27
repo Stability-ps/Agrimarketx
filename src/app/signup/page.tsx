@@ -59,7 +59,7 @@ export default async function SignupPage({
             <div className="grid gap-4 sm:grid-cols-2">
               <label>
                 <span className="text-sm font-semibold text-slate-700">Password</span>
-                <input className="field mt-1" name="password" type="password" placeholder="At least 8 characters" minLength={8} required />
+                <input className="field mt-1" name="password" type="password" placeholder="8+ characters, upper, lower and a number" minLength={8} required />
               </label>
               <label>
                 <span className="text-sm font-semibold text-slate-700">Confirm password</span>

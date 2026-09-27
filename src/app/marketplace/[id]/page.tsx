@@ -8,6 +8,9 @@ import { recordListingContactClick } from "@/app/account/actions";
 import { startMarketplaceConversation } from "@/app/account/messages/actions";
 import { reportMarketplaceListing, sendGuestMarketplaceMessage, toggleSavedListing } from "@/app/marketplace/actions";
 import { formatRand } from "@/lib/format";
+import { getListingContact } from "@/lib/listing-contact";
+import { recordListingMetric } from "@/lib/listing-metrics";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
 import { publicStorageUrl } from "@/lib/files";
 import { marketplaceCategoryLabel, marketplaceSubcategoryLabel } from "@/lib/marketplace-categories";
 import { sellerAccountRoleLabel, sellerStatusLabel, sellerVerificationBadge, verificationTrustScore } from "@/lib/seller-badges";
@@ -224,10 +227,6 @@ export default async function MarketplaceListingDetailPage({
       category,
       subcategory,
       listing_details,
-      seller_contact_name,
-      seller_contact_phone,
-      seller_contact_whatsapp,
-      seller_contact_email,
       preferred_contact_method,
       status,
       created_at,
@@ -249,23 +248,14 @@ export default async function MarketplaceListingDetailPage({
     );
   }
 
-  await supabase.rpc("increment_listing_metric", {
-    listing_id: listing.id,
-    metric: "view"
-  });
+  await recordListingMetric(listing.id, "view");
 
   if (source === "similar") {
-    await supabase.rpc("increment_listing_metric", {
-      listing_id: listing.id,
-      metric: "similar"
-    });
+    await recordListingMetric(listing.id, "similar");
   }
 
   if (contact) {
-    await supabase.rpc("increment_listing_metric", {
-      listing_id: listing.id,
-      metric: "contact"
-    });
+    await recordListingMetric(listing.id, "contact");
   }
 
   const { data: savedListing } = user
@@ -332,6 +322,10 @@ export default async function MarketplaceListingDetailPage({
         .maybeSingle()
     : { data: null };
   const isOwnerViewing = Boolean(farmMembership) || ["admin", "super_admin"].includes(profile?.account_role ?? "");
+  // Contact details are fetched server-side only after an explicit Contact
+  // Seller request, and are rate limited per client to stop scraping.
+  const contactRevealAllowed = contact && !isOwnerViewing ? await checkRateLimit("contactReveal") : false;
+  const sellerContact = contactRevealAllowed ? await getListingContact(listing.id) : null;
   const listingRef = String(listing.id).slice(0, 8).toUpperCase();
   const orderedSimilarAds = (similarAds ?? [])
     .sort((a: any, b: any) => {
@@ -456,11 +450,12 @@ export default async function MarketplaceListingDetailPage({
                 {contact ? (
                   <div className="rounded-md bg-green-50 p-3 text-sm text-green-900">
                     <p className="font-bold">Seller contact</p>
-                    {listing.seller_contact_name ? <p>{listing.seller_contact_name}</p> : null}
-                    {listing.seller_contact_phone ? <p>Phone: {listing.seller_contact_phone}</p> : null}
-                    {listing.seller_contact_whatsapp ? <p>WhatsApp: {listing.seller_contact_whatsapp}</p> : null}
-                    {listing.seller_contact_email ? <p>Email: {listing.seller_contact_email}</p> : null}
-                    {!listing.seller_contact_phone && !listing.seller_contact_whatsapp && !listing.seller_contact_email ? <p>Seller contact details are not available yet. Try chat instead.</p> : null}
+                    {!contactRevealAllowed ? <p>{RATE_LIMIT_MESSAGE}</p> : null}
+                    {sellerContact?.seller_contact_name ? <p>{sellerContact.seller_contact_name}</p> : null}
+                    {sellerContact?.seller_contact_phone ? <p>Phone: {sellerContact.seller_contact_phone}</p> : null}
+                    {sellerContact?.seller_contact_whatsapp ? <p>WhatsApp: {sellerContact.seller_contact_whatsapp}</p> : null}
+                    {sellerContact?.seller_contact_email ? <p>Email: {sellerContact.seller_contact_email}</p> : null}
+                    {contactRevealAllowed && !sellerContact?.seller_contact_phone && !sellerContact?.seller_contact_whatsapp && !sellerContact?.seller_contact_email ? <p>Seller contact details are not available yet. Try chat instead.</p> : null}
                   </div>
                 ) : (
                   <form action={recordListingContactClick}>
