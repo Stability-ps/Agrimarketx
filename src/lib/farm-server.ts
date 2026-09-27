@@ -1,3 +1,4 @@
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -45,7 +46,7 @@ async function loadCurrentFarm(): Promise<CurrentFarm | null> {
   }
 
   if (error) {
-    redirect(`/onboarding?message=${encodeURIComponent(error.message)}`);
+    redirect(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   const farm = Array.isArray(data?.farms) ? data?.farms[0] : data?.farms;

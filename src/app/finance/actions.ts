@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -57,7 +58,7 @@ export async function createFinanceTransaction(formData: FormData) {
   });
 
   if (error) {
-    go(`/finance?message=${encodeURIComponent(error.message)}`);
+    go(`/finance?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (animalId && transactionType === "sale") {

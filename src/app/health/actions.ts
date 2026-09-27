@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -55,7 +56,7 @@ export async function createHealthRecord(formData: FormData) {
     });
 
     if (error) {
-      go(`/health?message=${encodeURIComponent(error.message)}`);
+      go(`/health?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
     }
 
     revalidatePath("/health");
@@ -75,7 +76,7 @@ export async function createHealthRecord(formData: FormData) {
   const { data: farmAnimals, error: animalError } = await animalQuery;
 
   if (animalError) {
-    go(`/health?message=${encodeURIComponent(animalError.message)}`);
+    go(`/health?message=${encodeURIComponent(userSafeErrorMessage(animalError))}`);
   }
 
   if (!farmAnimals || farmAnimals.length === 0) {
@@ -90,7 +91,7 @@ export async function createHealthRecord(formData: FormData) {
   const { error } = await supabase.from("health_records").insert(records);
 
   if (error) {
-    go(`/health?message=${encodeURIComponent(error.message)}`);
+    go(`/health?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/health");

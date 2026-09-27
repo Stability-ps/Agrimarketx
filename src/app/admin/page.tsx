@@ -119,13 +119,6 @@ export default async function AdminPage() {
         description="Platform operations dashboard for marketplace moderation, users, requests, transfers, support and subscriptions."
       />
       <AdminNav />
-      <div className="mb-5 flex flex-wrap gap-2">
-        {["Today", "This Week", "This Month", "All Time"].map((filter) => (
-          <button key={filter} className={`rounded-md border px-3 py-2 text-sm font-bold ${filter === "All Time" ? "border-brand-green bg-green-50 text-brand-green" : "border-slate-200 text-slate-600"}`} type="button">
-            {filter}
-          </button>
-        ))}
-      </div>
       <div className="grid gap-5">
         {kpiGroups.map((group) => (
           <section key={group.title} className="panel p-4">

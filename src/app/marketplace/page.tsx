@@ -60,13 +60,6 @@ const categoryShortcuts = [
   { label: "More Categories", href: "/marketplace?category=all", icon: MoreHorizontal }
 ];
 
-const wantedListings = [
-  { title: "Looking for 20 Boer Does", location: "Eastern Cape", budget: "R2 500 - R3 000 / head", quantity: "20 does", icon: Users },
-  { title: "Need Lucerne Bales", location: "Free State", budget: "Open to bulk price", quantity: "100+ bales", icon: Package },
-  { title: "Looking for Dorper Ram", location: "KwaZulu-Natal", budget: "R6 000 - R8 000", quantity: "1 ram", icon: PawPrint },
-  { title: "Need Second Hand Tractor", location: "Mpumalanga", budget: "80 - 120 HP", quantity: "1 tractor", icon: Tractor }
-];
-
 const showMarketplaceStats = false;
 
 const marketplaceListingSelect = `
@@ -783,12 +776,7 @@ export default async function MarketplacePage({
         urgency: wanted.urgency,
         icon: normalizeMarketplaceCategory(wanted.category) === "livestock" ? PawPrint : Package
       }))
-    : wantedListings.map((wanted) => ({
-        ...wanted,
-        href: `/marketplace/wanted?request=${encodeURIComponent(wanted.title)}`,
-        categoryLabel: "Buyer request",
-        urgency: "needed_soon"
-      }));
+    : [];
   const resultLocationLabel = location.trim()
     || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
@@ -1102,6 +1090,12 @@ export default async function MarketplacePage({
           </div>
           <Link href="/marketplace/wanted" className="text-sm font-bold text-brand-green">View all</Link>
         </div>
+        {homepageWantedListings.length === 0 ? (
+          <div className="panel p-5 text-sm text-slate-600">
+            No open buyer requests right now.{" "}
+            <Link href="/marketplace/wanted" className="font-bold text-brand-green">Post what you are looking for</Link>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {homepageWantedListings.map((wanted) => {
             const Icon = wanted.icon;
@@ -1227,7 +1221,7 @@ export default async function MarketplacePage({
       ) : null}
       <section className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { title: "Verified Listings", subtitle: "Trusted sellers, quality assured", icon: ShieldCheck },
+          { title: "Seller Verification", subtitle: "Verification status is shown where available", icon: ShieldCheck },
           { title: "Nationwide Delivery", subtitle: "Connect with transport options", icon: Truck },
           { title: "Safe Trading", subtitle: "Private details stay protected", icon: Home },
           { title: "Help & Support", subtitle: "We are here to help you grow", icon: LifeBuoy }
@@ -1252,13 +1246,13 @@ export default async function MarketplacePage({
           <p className="text-sm font-bold uppercase tracking-wide text-brand-green">Sell and manage from one account</p>
           <h2 className="mt-2 text-2xl font-bold text-brand-navy">Become a seller on AgriMarketX</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-green-950">
-            Create listings, receive buyer requests, manage farm records and build trust with seller verification. The mobile app is planned; for now AgriMarketX works in your browser on phone, tablet and desktop.
+            Create listings, receive buyer requests, manage farm records and build trust with seller verification. AgriMarketX works across supported phones, tablets and desktop browsers, with the Android app using the same live marketplace.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={sellHref as never} className="primary-button">Start Selling</Link>
           <Link href="/farm-management" className="secondary-button bg-white">Farm Management</Link>
-          <span className="rounded-md border border-green-200 bg-white px-4 py-2 text-sm font-bold text-brand-green">App coming soon</span>
+          <Link href="/about" className="rounded-md border border-green-200 bg-white px-4 py-2 text-sm font-bold text-brand-green">About AgriMarketX</Link>
         </div>
       </section>
       <footer className="mt-8 border-t border-slate-200 pt-5 text-sm text-slate-600">

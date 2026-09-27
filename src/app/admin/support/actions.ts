@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -33,7 +34,7 @@ export async function updateSupportTicket(formData: FormData) {
     .eq("id", ticketId);
 
   if (error) {
-    go(`/admin/support?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/support?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/admin/support");

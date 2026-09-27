@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ACTIVE_FARM_COOKIE } from "@/lib/farm-cookie";
@@ -83,7 +84,7 @@ export async function createFarm(formData: FormData) {
     .single();
 
   if (companyError || !company) {
-    go(`/onboarding?message=${encodeURIComponent(companyError?.message ?? "Could not create company.")}`);
+    go(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(companyError, "Could not create company."))}`);
   }
 
   const { data: farm, error: farmError } = await supabase
@@ -109,7 +110,7 @@ export async function createFarm(formData: FormData) {
     .single();
 
   if (farmError || !farm) {
-    go(`/onboarding?message=${encodeURIComponent(farmError?.message ?? "Could not create farm.")}`);
+    go(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(farmError, "Could not create farm."))}`);
   }
 
   const { error: memberError } = await supabase.from("farm_members").insert({
@@ -119,7 +120,7 @@ export async function createFarm(formData: FormData) {
   });
 
   if (memberError) {
-    go(`/onboarding?message=${encodeURIComponent(memberError.message)}`);
+    go(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(memberError))}`);
   }
 
   if (selectedSpecies.length > 0) {
@@ -129,7 +130,7 @@ export async function createFarm(formData: FormData) {
       .in("name", selectedSpecies);
 
     if (speciesError) {
-      go(`/onboarding?message=${encodeURIComponent(speciesError.message)}`);
+      go(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(speciesError))}`);
     }
 
     const farmSpeciesRows = (speciesRows ?? []).map((species) => ({
@@ -142,7 +143,7 @@ export async function createFarm(formData: FormData) {
       const { error: farmSpeciesError } = await supabase.from("farm_species").insert(farmSpeciesRows);
 
       if (farmSpeciesError) {
-        go(`/onboarding?message=${encodeURIComponent(farmSpeciesError.message)}`);
+        go(`/onboarding?message=${encodeURIComponent(userSafeErrorMessage(farmSpeciesError))}`);
       }
     }
   }

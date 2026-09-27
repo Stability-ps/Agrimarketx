@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { createClient } from "@/lib/supabase/server";
 
 function validPassword(password: string) {
@@ -40,7 +41,7 @@ export async function updatePassword(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
-    redirect(`/reset-password?message=${encodeURIComponent(error.message || "Could not update password. Please try again.")}` as never);
+    redirect(`/reset-password?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not update password. Please try again."))}` as never);
   }
 
   await supabase.auth.signOut();

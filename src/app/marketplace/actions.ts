@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cleanFileName, isImageFile } from "@/lib/files";
@@ -107,7 +108,8 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
     });
 
     if (uploadError) {
-      throw new Error(`Photo storage failed: ${uploadError.message}`);
+      console.error("[photo-upload]", uploadError.message);
+      throw new Error("We could not upload your photo. Please try again.");
     }
 
     const { error: mediaError } = await supabase.from("marketplace_listing_media").insert({
@@ -119,11 +121,8 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
     });
 
     if (mediaError) {
-      if (mediaError.message.includes("marketplace_listing_media")) {
-        throw new Error("Listing photo table is missing. Please run Supabase migration 015_trust_support_marketplace.sql, then try again.");
-      }
-
-      throw new Error(`Photo was uploaded, but the listing photo record could not be saved: ${mediaError.message}`);
+      console.error("[photo-record]", mediaError.message);
+      throw new Error("Your photo was uploaded but could not be attached. Please try again.");
     }
   }
 }
@@ -174,7 +173,7 @@ export async function createMarketplaceListing(formData: FormData) {
   });
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   await supabase.from("animals").update({ status: "to_be_sold" }).eq("id", animalId).eq("farm_id", farm.id);
@@ -240,7 +239,7 @@ export async function createUniversalMarketplaceListing(formData: FormData) {
   }
 
   if (error || !listing) {
-    go(`/marketplace/create?message=${encodeURIComponent(error?.message ?? "Could not create listing.")}`);
+    go(`/marketplace/create?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not create listing."))}`);
   }
 
   try {
@@ -295,7 +294,7 @@ export async function updateMarketplaceListing(formData: FormData) {
     .eq("seller_farm_id", farm.id);
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (status === "removed") {
@@ -346,7 +345,7 @@ export async function sendMarketplaceEnquiry(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -388,7 +387,7 @@ export async function sendGuestMarketplaceMessage(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace/${listing.id}?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace/${listing.id}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   await supabase.rpc("increment_listing_metric", {
@@ -426,7 +425,7 @@ export async function updateMarketplaceEnquiryStatus(formData: FormData) {
     .eq("seller_farm_id", farm.id);
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -459,7 +458,7 @@ export async function makeMarketplaceOffer(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -491,7 +490,7 @@ export async function toggleSavedListing(formData: FormData) {
       .eq("user_id", user.id);
 
     if (error) {
-      go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+      go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
     }
 
     revalidatePath("/marketplace");
@@ -505,7 +504,7 @@ export async function toggleSavedListing(formData: FormData) {
   }, { onConflict: "listing_id,user_id" });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -534,7 +533,7 @@ export async function reportMarketplaceListing(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -573,7 +572,7 @@ export async function acceptMarketplaceOffer(formData: FormData) {
     .eq("listing_id", listingId);
 
   if (offerError) {
-    go(`/marketplace?message=${encodeURIComponent(offerError.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(offerError))}`);
   }
 
   await supabase.from("marketplace_listings").update({ status: "reserved" }).eq("id", listingId).eq("seller_farm_id", farm.id);
@@ -587,7 +586,7 @@ export async function acceptMarketplaceOffer(formData: FormData) {
   });
 
   if (transferError) {
-    go(`/marketplace?message=${encodeURIComponent(transferError.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(transferError))}`);
   }
 
   revalidatePath("/marketplace");
@@ -612,7 +611,7 @@ export async function selectTransferDelivery(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");
@@ -634,7 +633,7 @@ export async function confirmTransferReceived(formData: FormData) {
   });
 
   if (error) {
-    go(`/marketplace?message=${encodeURIComponent(error.message)}`);
+    go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/marketplace");

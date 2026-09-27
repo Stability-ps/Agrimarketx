@@ -9,7 +9,7 @@ const categories = [
   ["Farm Management", ["Switch farms", "Edit farm details"]],
   ["QR Tags", ["Animal passport QR codes", "Public passport view"]],
   ["Safety", ["Avoid scams", "Report suspicious listings"]],
-  ["Subscription & Billing", ["Plan limits", "Billing support"]]
+  ["Account & Support", ["Account settings", "Contact support"]]
 ] as const;
 
 export default function HelpCentrePage() {
@@ -17,7 +17,6 @@ export default function HelpCentrePage() {
     <AppShell>
       <PageHeader title="Help Centre" description="Find simple help articles for AgriMarketX." />
       <div className="mx-auto max-w-3xl">
-        <input className="field mb-4" placeholder="Search help articles" />
         <div className="grid gap-3 sm:grid-cols-2">
           {categories.map(([category, articles]) => (
             <section key={category} className="rounded-md border border-slate-200 bg-white p-4">

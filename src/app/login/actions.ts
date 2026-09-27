@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { findAuthUserByEmail } from "@/lib/auth-users";
@@ -155,7 +156,7 @@ export async function requestPasswordReset(formData: FormData) {
   });
 
   if (error) {
-    go(`/login?message=${encodeURIComponent(error.message)}`);
+    go(`/login?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("If that email exists, a password reset link has been sent.")}`);
@@ -179,7 +180,7 @@ export async function resendConfirmationEmail(formData: FormData) {
   });
 
   if (error) {
-    go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent(error.message)}`);
+    go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   go(`/signup/confirm?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Confirmation email resent. Please check your inbox and spam folder.")}`);
@@ -196,7 +197,7 @@ export async function signInWithGoogle(formData: FormData) {
   });
 
   if (error || !data.url) {
-    go(`/login?message=${encodeURIComponent(error?.message ?? "Could not start Google login.")}`);
+    go(`/login?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not start Google login."))}`);
   }
 
   go(data.url);

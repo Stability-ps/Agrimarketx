@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -46,7 +47,7 @@ export async function updateAnimal(formData: FormData) {
     .eq("farm_id", farm.id);
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath(`/animals/${animalId}`);
@@ -85,7 +86,7 @@ export async function addWeightRecord(formData: FormData) {
   });
 
   if (weightError) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(weightError.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(weightError))}`);
   }
 
   const { error: updateError } = await supabase
@@ -95,7 +96,7 @@ export async function addWeightRecord(formData: FormData) {
     .eq("farm_id", farm.id);
 
   if (updateError) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(updateError.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(updateError))}`);
   }
 
   revalidatePath(`/animals/${animalId}`);
@@ -139,7 +140,7 @@ export async function addHealthRecord(formData: FormData) {
   });
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath(`/animals/${animalId}`);
