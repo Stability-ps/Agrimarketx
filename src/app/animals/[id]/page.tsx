@@ -191,7 +191,7 @@ export default async function AnimalProfilePage({
             <div>
               <p className="text-sm font-semibold text-slate-500">Digital animal passport</p>
               <h3 className="mt-1 text-xl font-bold">{animal.passport_id}</h3>
-              <p className="mt-2 text-sm text-slate-600">Public/private passport view with QR code, full history and PDF export.</p>
+              <p className="mt-2 text-sm text-slate-600">Passport ID, photos and the full record history for this animal.</p>
               <div className="mt-4 max-w-xs overflow-hidden rounded-md border border-slate-200 bg-slate-50">
                 {profilePhoto ? (
                   <img
@@ -207,9 +207,6 @@ export default async function AnimalProfilePage({
               </div>
             </div>
             <div className="flex flex-col items-end gap-3">
-              <div className="grid h-28 w-28 place-items-center rounded-lg border border-slate-300 bg-slate-50 text-center text-xs font-semibold text-slate-500">
-                QR CODE
-              </div>
               <Link href={listingHref as never} className="secondary-button">
                 Create listing
               </Link>

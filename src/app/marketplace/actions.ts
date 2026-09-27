@@ -121,7 +121,8 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
     });
 
     if (uploadError) {
-      throw new Error(`Photo storage failed: ${uploadError.message}`);
+      console.error("[photo-upload]", uploadError.message);
+      throw new Error("We could not upload your photo. Please try again.");
     }
 
     const { error: mediaError } = await supabase.from("marketplace_listing_media").insert({
@@ -133,11 +134,8 @@ async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createCli
     });
 
     if (mediaError) {
-      if (mediaError.message.includes("marketplace_listing_media")) {
-        throw new Error("Listing photo table is missing. Please run Supabase migration 015_trust_support_marketplace.sql, then try again.");
-      }
-
-      throw new Error(`Photo was uploaded, but the listing photo record could not be saved: ${mediaError.message}`);
+      console.error("[photo-record]", mediaError.message);
+      throw new Error("Your photo was uploaded but could not be attached. Please try again.");
     }
   }
 }

@@ -45,7 +45,8 @@ async function uploadWantedPhotos(supabase: Awaited<ReturnType<typeof createClie
     });
 
     if (uploadError) {
-      throw new Error(`Photo storage failed: ${uploadError.message}`);
+      console.error("[photo-upload]", uploadError.message);
+      throw new Error("We could not upload your photo. Please try again.");
     }
 
     const { error: mediaError } = await supabase.from("buyer_request_media").insert({
@@ -56,7 +57,8 @@ async function uploadWantedPhotos(supabase: Awaited<ReturnType<typeof createClie
     });
 
     if (mediaError) {
-      throw new Error(`Photo was uploaded, but the request photo record could not be saved: ${mediaError.message}`);
+      console.error("[photo-record]", mediaError.message);
+      throw new Error("Your photo was uploaded but could not be attached. Please try again.");
     }
   }
 }

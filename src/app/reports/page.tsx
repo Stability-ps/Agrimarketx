@@ -51,7 +51,7 @@ export default async function ReportsPage() {
     <AppShell>
       <PageHeader
         title="Reports"
-        description="Generate farm, herd, health, breeding, finance, marketplace and PDF export centre reports."
+        description="Open your farm records by area: animals, health, breeding, finance and marketplace activity."
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {reports.map((report) => (
