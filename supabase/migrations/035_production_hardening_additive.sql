@@ -132,3 +132,217 @@ create index if not exists weight_records_animal_idx on public.weight_records(an
 create index if not exists animal_documents_animal_idx on public.animal_documents(animal_id);
 create index if not exists herds_farm_idx on public.herds(farm_id);
 create index if not exists camps_farm_idx on public.camps(farm_id);
+
+-- ---------------------------------------------------------------------------
+-- 5. Reconcile objects that exist in migrations 001-034 but are MISSING in
+--    production (found by `supabase db diff --linked` against 001-034 on
+--    2026-09-27: those migrations were applied by hand and these parts never
+--    ran). Copied verbatim from the original migrations; all idempotent, so
+--    this is harmless where the objects already exist. Must run before 036,
+--    which changes grants on the transfer functions.
+-- ---------------------------------------------------------------------------
+
+-- From 007_buyer_transfer_functions.sql (the app's ownership-transfer RPCs).
+create or replace function public.buyer_select_transfer_delivery(
+  transfer_id uuid,
+  selected_delivery_method text,
+  selected_buyer_farm_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if selected_delivery_method not in ('collect', 'delivery') then
+    raise exception 'Choose collect or delivery.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.ownership_transfers ot
+    where ot.id = transfer_id
+      and ot.buyer_user_id = auth.uid()
+      and ot.status in ('seller_ready', 'awaiting_collection')
+  ) then
+    raise exception 'Transfer not found for this buyer.';
+  end if;
+
+  if not public.is_farm_member(selected_buyer_farm_id) then
+    raise exception 'Choose one of your farms.';
+  end if;
+
+  update public.ownership_transfers
+  set buyer_farm_id = selected_buyer_farm_id,
+      delivery_method = selected_delivery_method,
+      status = 'awaiting_collection'
+  where id = transfer_id;
+end;
+$$;
+
+create or replace function public.complete_ownership_transfer(
+  transfer_id uuid,
+  selected_buyer_farm_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  transfer_record public.ownership_transfers%rowtype;
+begin
+  select *
+  into transfer_record
+  from public.ownership_transfers
+  where id = transfer_id
+    and buyer_user_id = auth.uid()
+    and status = 'delivered';
+
+  if transfer_record.id is null then
+    raise exception 'Transfer must be delivered before buyer can confirm received.';
+  end if;
+
+  if not public.is_farm_member(selected_buyer_farm_id) then
+    raise exception 'Choose one of your farms.';
+  end if;
+
+  update public.ownership_history
+  set released_at = now()
+  where animal_id = transfer_record.animal_id
+    and farm_id = transfer_record.seller_farm_id
+    and released_at is null;
+
+  update public.animals
+  set farm_id = selected_buyer_farm_id,
+      status = 'alive',
+      origin = 'marketplace_purchase',
+      sold_at = null,
+      updated_at = now()
+  where id = transfer_record.animal_id;
+
+  insert into public.ownership_history (animal_id, farm_id, owner_user_id, transfer_id)
+  values (transfer_record.animal_id, selected_buyer_farm_id, auth.uid(), transfer_id);
+
+  update public.ownership_transfers
+  set buyer_farm_id = selected_buyer_farm_id,
+      status = 'received',
+      received_at = now()
+  where id = transfer_id;
+
+  update public.marketplace_listings
+  set status = 'sold'
+  where animal_id = transfer_record.animal_id
+    and seller_farm_id = transfer_record.seller_farm_id;
+end;
+$$;
+
+grant execute on function public.buyer_select_transfer_delivery(uuid, text, uuid) to authenticated;
+grant execute on function public.complete_ownership_transfer(uuid, uuid) to authenticated;
+
+-- From 012_admin_listing_review.sql and 014_marketplace_contacts_enquiries.sql.
+drop policy if exists "Platform admins read all offers" on public.marketplace_offers;
+create policy "Platform admins read all offers" on public.marketplace_offers
+for select using (public.is_platform_admin());
+
+drop policy if exists "Platform admins read all transfers" on public.ownership_transfers;
+create policy "Platform admins read all transfers" on public.ownership_transfers
+for select using (public.is_platform_admin());
+
+drop policy if exists "Platform admins read all subscriptions" on public.subscriptions;
+create policy "Platform admins read all subscriptions" on public.subscriptions
+for select using (public.is_platform_admin());
+
+drop policy if exists "Platform admins read all disputes" on public.disputes;
+create policy "Platform admins read all disputes" on public.disputes
+for select using (public.is_platform_admin());
+
+drop policy if exists "Platform admins manage disputes" on public.disputes;
+create policy "Platform admins manage disputes" on public.disputes
+for update using (public.is_platform_admin()) with check (public.is_platform_admin());
+
+drop policy if exists "Platform admins read all enquiries" on public.marketplace_enquiries;
+create policy "Platform admins read all enquiries" on public.marketplace_enquiries
+for select using (public.is_platform_admin());
+
+create index if not exists marketplace_enquiries_listing_idx on public.marketplace_enquiries(listing_id);
+create index if not exists marketplace_enquiries_seller_farm_idx on public.marketplace_enquiries(seller_farm_id);
+
+-- From 025_production_indexes.sql (none of these indexes exist in production).
+create index if not exists marketplace_listings_status_created_at_idx
+on public.marketplace_listings(status, created_at desc);
+
+create index if not exists marketplace_listings_status_category_created_at_idx
+on public.marketplace_listings(status, category, created_at desc);
+
+create index if not exists marketplace_listings_status_category_subcategory_created_at_idx
+on public.marketplace_listings(status, category, subcategory, created_at desc);
+
+create index if not exists marketplace_listings_seller_status_created_at_idx
+on public.marketplace_listings(seller_farm_id, status, created_at desc);
+
+create index if not exists marketplace_listings_province_town_status_idx
+on public.marketplace_listings(province, town, status);
+
+create index if not exists marketplace_listing_media_listing_primary_idx
+on public.marketplace_listing_media(listing_id, is_primary, created_at desc);
+
+create index if not exists marketplace_enquiries_listing_status_idx
+on public.marketplace_enquiries(listing_id, status, created_at desc);
+
+create index if not exists marketplace_enquiries_seller_status_idx
+on public.marketplace_enquiries(seller_farm_id, status, created_at desc);
+
+create index if not exists buyer_requests_status_created_at_idx
+on public.buyer_requests(status, created_at desc);
+
+create index if not exists buyer_requests_category_subcategory_status_idx
+on public.buyer_requests(category, subcategory, status);
+
+create index if not exists buyer_requests_buyer_status_idx
+on public.buyer_requests(buyer_id, status, created_at desc);
+
+create index if not exists buyer_request_responses_request_idx
+on public.buyer_request_responses(request_id, created_at desc);
+
+create index if not exists buyer_request_responses_seller_idx
+on public.buyer_request_responses(seller_farm_id, created_at desc);
+
+create index if not exists buyer_request_media_request_primary_idx
+on public.buyer_request_media(request_id, is_primary, created_at desc);
+
+create index if not exists conversations_listing_idx
+on public.conversations(listing_id, created_at desc);
+
+create index if not exists conversations_status_updated_idx
+on public.conversations(status, updated_at desc);
+
+create index if not exists conversation_participants_user_idx
+on public.conversation_participants(user_id, conversation_id);
+
+create index if not exists conversation_participants_farm_idx
+on public.conversation_participants(farm_id, conversation_id);
+
+create index if not exists conversation_messages_conversation_created_idx
+on public.conversation_messages(conversation_id, created_at desc);
+
+create index if not exists support_tickets_created_by_status_idx
+on public.support_tickets(created_by, status, created_at desc);
+
+create index if not exists support_tickets_status_updated_idx
+on public.support_tickets(status, updated_at desc);
+
+create index if not exists app_notifications_user_read_created_idx
+on public.app_notifications(user_id, read_at, created_at desc);
+
+create index if not exists app_notifications_farm_created_idx
+on public.app_notifications(farm_id, created_at desc);
+
+create index if not exists locations_province_town_idx
+on public.locations(province, town);
+
+create index if not exists farm_followers_farm_idx
+on public.farm_followers(farm_id, created_at desc);
+
+create index if not exists farm_followers_user_idx
+on public.farm_followers(user_id, created_at desc);
