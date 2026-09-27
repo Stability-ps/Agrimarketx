@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,7 +33,7 @@ export async function createPublicContactEnquiry(formData: FormData) {
   });
 
   if (error) {
-    go(`/contact?message=${encodeURIComponent(error.message)}`);
+    go(`/contact?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   go(`/contact?message=${encodeURIComponent("Thanks. Your message was sent to AgriMarketX support.")}`);
