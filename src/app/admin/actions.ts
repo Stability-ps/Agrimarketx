@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -43,7 +44,7 @@ export async function approveMarketplaceListing(formData: FormData) {
     .eq("id", listingId);
 
   if (error) {
-    go(`/admin/listings?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/listings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (listing?.seller_farm_id) {
@@ -92,7 +93,7 @@ export async function rejectMarketplaceListing(formData: FormData) {
     .eq("id", listingId);
 
   if (error) {
-    go(`/admin/listings?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/listings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (listing?.seller_farm_id) {
@@ -136,7 +137,7 @@ export async function removeMarketplaceListing(formData: FormData) {
     .eq("id", listingId);
 
   if (error) {
-    go(`/admin/listings?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/listings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (listing?.seller_farm_id) {
@@ -170,7 +171,7 @@ export async function updateDisputeStatus(formData: FormData) {
     .eq("id", disputeId);
 
   if (error) {
-    go(`/admin/reports?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/reports?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/admin/reports");
@@ -193,7 +194,7 @@ export async function removeReportedListing(formData: FormData) {
     .eq("id", listingId);
 
   if (listingError) {
-    go(`/admin/reports?message=${encodeURIComponent(listingError.message)}`);
+    go(`/admin/reports?message=${encodeURIComponent(userSafeErrorMessage(listingError))}`);
   }
 
   const { error } = await supabase
@@ -202,7 +203,7 @@ export async function removeReportedListing(formData: FormData) {
     .eq("id", disputeId);
 
   if (error) {
-    go(`/admin/reports?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/reports?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/admin/reports");
@@ -297,7 +298,7 @@ export async function updateSellerVerification(formData: FormData) {
     .eq("id", farmId);
 
   if (error) {
-    go(`/admin/verifications?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/verifications?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   const { data: members } = await supabase
@@ -417,7 +418,7 @@ export async function updateBuyerRequestStatus(formData: FormData) {
     .eq("id", requestId);
 
   if (error) {
-    go(`/admin/wanted-requests?message=${encodeURIComponent(error.message)}`);
+    go(`/admin/wanted-requests?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (request?.buyer_id) {
