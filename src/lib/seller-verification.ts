@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
 import { automaticSellerStatus, verificationTrustScore, type FarmSellerStatus } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,13 +46,21 @@ export async function getSellerVerificationSummary(userId: string): Promise<Sell
     supabase.auth.getUser(),
     supabase
       .from("farm_members")
-      .select("farms(email_verified, phone_verified, seller_verification_status, admin_verification_override, verification_rejection_reason, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, facial_didit_session_id, didit_session_id)")
+      .select("farm_id")
       .eq("user_id", userId)
       .limit(1)
   ]);
 
   const authEmailVerified = Boolean(userData.user?.email_confirmed_at || userData.user?.confirmed_at);
-  const farm = Array.isArray(farmRows?.[0]?.farms) ? farmRows?.[0]?.farms[0] : farmRows?.[0]?.farms;
+  // The membership row is RLS-scoped (only visible to members of that farm),
+  // so the caller may read the farm's private verification fields.
+  const farmId = farmRows?.[0]?.farm_id;
+  const farm = farmId
+    ? await readVerifiedFarmPrivateFields<any>(
+        farmId,
+        "email_verified, phone_verified, seller_verification_status, admin_verification_override, verification_rejection_reason, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, facial_didit_session_id, didit_session_id"
+      )
+    : null;
 
   const emailVerified = Boolean(farm?.email_verified) || Boolean(data?.email_verified) || authEmailVerified;
   const phoneVerified = Boolean(farm?.phone_verified) || Boolean(data?.phone_verified);

@@ -3,6 +3,7 @@
 import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { validateUpload, VERIFICATION_DOCUMENTS_BUCKET } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -96,9 +97,16 @@ export async function submitBusinessVerification(formData: FormData) {
       continue;
     }
 
-    const path = `verification-documents/${farmId}/${documentType}-${Date.now()}-${safeName(value.name)}`;
-    const { error: uploadError } = await admin.storage.from("farm-assets").upload(path, value, {
-      contentType: value.type || "application/octet-stream",
+    const validation = await validateUpload(value, "document");
+    if (!validation.ok) {
+      go(`/seller/verification?message=${encodeURIComponent(validation.message)}`);
+    }
+
+    // Identity/business documents go to the PRIVATE bucket; admins view them
+    // through short-lived signed URLs only.
+    const path = `${farmId}/${documentType}-${Date.now()}-${safeName(value.name)}`;
+    const { error: uploadError } = await admin.storage.from(VERIFICATION_DOCUMENTS_BUCKET).upload(path, value, {
+      contentType: validation.contentType,
       upsert: false
     });
 

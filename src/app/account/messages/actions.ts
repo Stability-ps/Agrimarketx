@@ -1,10 +1,12 @@
 "use server";
 
 import { userSafeErrorMessage } from "@/lib/user-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentFarm } from "@/lib/farm-server";
+import { recordListingMetric } from "@/lib/listing-metrics";
 
 function go(path: string): never {
   redirect(path as never);
@@ -41,10 +43,7 @@ export async function startMarketplaceConversation(formData: FormData) {
     go(`/marketplace?message=${encodeURIComponent(userSafeErrorMessage(listingError, "Listing not found."))}`);
   }
 
-  await supabase.rpc("increment_listing_metric", {
-    listing_id: listing.id,
-    metric: "chat"
-  });
+  await recordListingMetric(listing.id, "chat");
 
   const { data: conversation, error } = await supabase
     .from("conversations")
@@ -74,7 +73,7 @@ export async function startMarketplaceConversation(formData: FormData) {
     body: firstMessage
   });
 
-  await supabase.from("app_notifications").insert({
+  await createAdminClient().from("app_notifications").insert({
     farm_id: listing.seller_farm_id,
     title: "New marketplace message",
     body: `A buyer sent a message about ${listing.title}.`,
@@ -173,7 +172,7 @@ export async function createSupportTicket(formData: FormData) {
     });
   }
 
-  await supabase.from("app_notifications").insert({
+  await createAdminClient().from("app_notifications").insert({
     title: "New support ticket",
     body: `${ticket.ticket_number}: ${subject}`,
     type: "support",

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { recordListingMetric } from "@/lib/listing-metrics";
 
 export async function POST(request: Request) {
   const { listingId, metric } = await request.json().catch(() => ({}));
@@ -8,11 +8,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  await supabase.rpc("increment_listing_metric", {
-    listing_id: listingId,
-    metric
-  });
+  // Validation, per-client rate limiting and the privileged RPC call all
+  // happen server-side; over-limit events are silently not counted.
+  await recordListingMetric(listingId, metric);
 
   return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,7 @@ import { CheckCircle2, CircleAlert, Phone, ShieldCheck, XCircle } from "lucide-r
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { AdminNav } from "@/components/AdminNav";
 import { sellerAccountRoleLabel, sellerStatusLabel } from "@/lib/seller-badges";
-import { createClient } from "@/lib/supabase/server";
+import { requirePlatformAdmin } from "@/lib/privileged-reads";
 import { updateSellerVerification } from "../actions";
 
 const statusOptions = [
@@ -29,8 +29,10 @@ const sellerRoleOptions = [
 ] as const;
 
 export default async function AdminVerificationsPage() {
-  const supabase = await createClient();
-  const { data: farms } = await supabase
+  // Private verification fields are read with the service role after an
+  // explicit admin check (column privileges hide them from normal clients).
+  const { admin } = await requirePlatformAdmin();
+  const { data: farms } = await admin
     .from("farms")
     .select(`
       id,
@@ -126,6 +128,15 @@ export default async function AdminVerificationsPage() {
                       <div key={document.id} className="rounded-md bg-white p-2">
                         <span className="font-semibold">{String(document.document_type).replaceAll("_", " ")}</span>
                         <span className="text-slate-500"> · {document.file_name ?? "Uploaded file"}</span>
+                        {/* Opens a 60-second signed URL from the private bucket. */}
+                        <a
+                          href={`/admin/verifications/documents/${document.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 font-semibold text-brand-green hover:underline"
+                        >
+                          View
+                        </a>
                       </div>
                     ))}
                   </div>

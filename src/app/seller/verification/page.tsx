@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
 import { Building2, CheckCircle2, Clock, FileText, Mail, Phone, ShieldCheck, UserRound, XCircle } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { DiditVerificationActions } from "@/components/verification/DiditVerificationActions";
@@ -30,38 +31,20 @@ export default async function SellerVerificationPage({
   const { data: membership } = user
     ? await supabase
         .from("farm_members")
-        .select(`
-          farm_id,
-          farms(
-            id,
-            name,
-            owner_name,
-            owner_phone,
-            location,
-            province,
-            city,
-            seller_type,
-            business_name,
-            trading_name,
-            registration_number,
-            vat_number,
-            contact_person,
-            contact_person_position,
-            physical_address,
-            business_type,
-            business_description,
-            representative_name,
-            representative_role,
-            representative_email,
-            representative_phone
-          )
-        `)
+        .select("farm_id")
         .eq("user_id", user.id)
         .eq("role", "owner")
         .limit(1)
         .maybeSingle()
     : { data: null };
-  const farm = Array.isArray(membership?.farms) ? membership?.farms[0] : membership?.farms;
+  // Ownership is proven by the RLS-scoped membership row above; the business
+  // and identity fields are private columns read with the service role.
+  const farm = membership?.farm_id
+    ? await readVerifiedFarmPrivateFields<any>(
+        membership.farm_id,
+        "id, name, owner_name, owner_phone, location, province, city, seller_type, business_name, trading_name, registration_number, vat_number, contact_person, contact_person_position, physical_address, business_type, business_description, representative_name, representative_role, representative_email, representative_phone"
+      )
+    : null;
   const { data: documents } = farm?.id
     ? await supabase
         .from("seller_verification_documents")

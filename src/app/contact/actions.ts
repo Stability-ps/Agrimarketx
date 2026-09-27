@@ -1,8 +1,9 @@
 "use server";
 
 import { userSafeErrorMessage } from "@/lib/user-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 
 function text(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
@@ -14,7 +15,6 @@ function go(path: string): never {
 }
 
 export async function createPublicContactEnquiry(formData: FormData) {
-  const supabase = await createClient();
   const name = text(formData, "name");
   const email = text(formData, "email");
   const subject = text(formData, "subject");
@@ -24,7 +24,11 @@ export async function createPublicContactEnquiry(formData: FormData) {
     go(`/contact?message=${encodeURIComponent("Please add your name, email, subject and message.")}`);
   }
 
-  const { error } = await supabase.from("public_contact_enquiries").insert({
+  if (!(await checkRateLimit("contactForm"))) {
+    go(`/contact?message=${encodeURIComponent(RATE_LIMIT_MESSAGE)}`);
+  }
+
+  const { error } = await createAdminClient().from("public_contact_enquiries").insert({
     name,
     email,
     enquiry_type: text(formData, "enquiryType") ?? "support",

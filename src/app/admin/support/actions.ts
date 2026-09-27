@@ -3,7 +3,7 @@
 import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requirePlatformAdmin } from "@/lib/privileged-reads";
 
 function go(path: string): never {
   redirect(path as never);
@@ -15,7 +15,9 @@ function text(formData: FormData, key: string) {
 }
 
 export async function updateSupportTicket(formData: FormData) {
-  const supabase = await createClient();
+  // Server actions can be invoked from any route, so the admin check must
+  // happen here (not only in middleware). Writes use the service role.
+  const { admin: supabase } = await requirePlatformAdmin();
   const ticketId = text(formData, "ticketId");
   const status = text(formData, "status") ?? "in_progress";
   const adminNote = text(formData, "adminNote");

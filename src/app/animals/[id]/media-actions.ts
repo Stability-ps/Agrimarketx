@@ -3,7 +3,7 @@
 import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cleanFileName, isImageFile } from "@/lib/files";
+import { cleanFileName, validateUpload } from "@/lib/files";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,8 +22,9 @@ export async function uploadAnimalPhoto(formData: FormData) {
     go(`/animals/${animalId}?message=${encodeURIComponent("Choose an animal photo to upload.")}`);
   }
 
-  if (!isImageFile(file)) {
-    go(`/animals/${animalId}?message=${encodeURIComponent("Please upload an image file.")}`);
+  const validation = await validateUpload(file, "image");
+  if (!validation.ok) {
+    go(`/animals/${animalId}?message=${encodeURIComponent(validation.message)}`);
   }
 
   const { data: animal } = await supabase
@@ -45,7 +46,7 @@ export async function uploadAnimalPhoto(formData: FormData) {
     .eq("media_type", "photo");
 
   const { error: uploadError } = await supabase.storage.from("animal-media").upload(path, file, {
-    contentType: file.type,
+    contentType: validation.contentType,
     upsert: false
   });
 

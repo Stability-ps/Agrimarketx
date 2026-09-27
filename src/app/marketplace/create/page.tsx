@@ -7,6 +7,7 @@ import { UniversalListingForm } from "@/components/UniversalListingForm";
 import { createUniversalMarketplaceListing } from "@/app/marketplace/actions";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { createClient } from "@/lib/supabase/server";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
 
 export default async function CreateMarketplaceListingPage({
   searchParams
@@ -15,12 +16,7 @@ export default async function CreateMarketplaceListingPage({
 }) {
   const { message } = await searchParams;
   const farm = await getCurrentFarm();
-  const supabase = await createClient();
-  const { data: farmDetails } = await supabase
-    .from("farms")
-    .select("location, province, gps_latitude, gps_longitude")
-    .eq("id", farm.id)
-    .maybeSingle();
+  const farmDetails = await readVerifiedFarmPrivateFields<any>(farm.id, "location, province, gps_latitude, gps_longitude");
 
   return (
     <AppShell>

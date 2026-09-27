@@ -27,7 +27,7 @@ export default async function ResetPasswordPage({
           <form action={updatePassword} className="space-y-4">
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">New Password</span>
-              <input className="field mt-1" name="password" type="password" placeholder="At least 8 characters" minLength={8} required />
+              <input className="field mt-1" name="password" type="password" placeholder="8+ characters, upper, lower and a number" minLength={8} required />
             </label>
             <label className="block">
               <span className="text-sm font-semibold text-slate-700">Confirm Password</span>

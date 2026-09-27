@@ -4,7 +4,7 @@ import { userSafeErrorMessage } from "@/lib/user-errors";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cleanFileName, isImageFile, publicStorageUrl } from "@/lib/files";
+import { cleanFileName, publicStorageUrl, validateUpload } from "@/lib/files";
 import { ACTIVE_FARM_COOKIE } from "@/lib/farm-cookie";
 import { getCurrentFarm } from "@/lib/farm-server";
 import { normalizeSupplyCategories } from "@/lib/supply-categories";
@@ -52,13 +52,14 @@ async function setActiveFarmCookie(farmId: string) {
 async function uploadImage(file: File, folder: string) {
   const supabase = await createClient();
 
-  if (!isImageFile(file)) {
-    throw new Error("Please upload an image file.");
+  const validation = await validateUpload(file, "image");
+  if (!validation.ok) {
+    throw new Error(validation.message);
   }
 
   const path = `${folder}/${Date.now()}-${cleanFileName(file.name)}`;
   const { error } = await supabase.storage.from("farm-assets").upload(path, file, {
-    contentType: file.type,
+    contentType: validation.contentType,
     upsert: false
   });
 

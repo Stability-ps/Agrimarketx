@@ -3,7 +3,8 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { findAuthUserByEmail } from "@/lib/auth-users";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
+import { passwordPolicyError } from "@/lib/password-policy";
 import { createClient } from "@/lib/supabase/server";
 
 async function getBaseUrl() {
@@ -81,17 +82,6 @@ function isConfirmationDeliveryFailure(error: unknown) {
   );
 }
 
-function validPassword(password: string) {
-  if (password.length < 8) {
-    return "Password must be at least 8 characters.";
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    return "Password must have at least one uppercase character.";
-  }
-
-  return null;
-}
 
 export async function createAccount(formData: FormData) {
   const fullName = String(formData.get("fullName") ?? "").trim();
@@ -107,7 +97,7 @@ export async function createAccount(formData: FormData) {
     signupError({ accountType, email, fullName, message: "Please complete all fields.", phone, sellerType });
   }
 
-  const passwordMessage = validPassword(password);
+  const passwordMessage = passwordPolicyError(password);
 
   if (passwordMessage) {
     signupError({ accountType, email, fullName, message: passwordMessage, phone, sellerType });
@@ -115,6 +105,10 @@ export async function createAccount(formData: FormData) {
 
   if (password !== confirmPassword) {
     signupError({ accountType, email, fullName, message: "Confirm password must match password.", phone, sellerType });
+  }
+
+  if (!(await checkRateLimit("signup"))) {
+    signupError({ accountType, email, fullName, message: RATE_LIMIT_MESSAGE, phone, sellerType });
   }
 
   const existingUser = await findAuthUserByEmail(email);
@@ -176,52 +170,15 @@ export async function createAccount(formData: FormData) {
     }
 
     if (isConfirmationDeliveryFailure(error)) {
-      let createdByAdmin = false;
-      let adminFailureMessage = "";
-
-      try {
-        const admin = createAdminClient();
-        const { data: adminData, error: adminError } = await admin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            full_name: fullName,
-            phone,
-            account_role: accountRole,
-            account_type_selected: true,
-            seller_type: sellerType
-          }
-        });
-
-        createdByAdmin = !adminError && Boolean(adminData.user);
-        adminFailureMessage = readableAuthError(adminError);
-      } catch (adminError) {
-        adminFailureMessage = readableAuthError(adminError);
-      }
-
-      if (createdByAdmin) {
-        go(`/login?email=${encodeURIComponent(email)}&message=${encodeURIComponent("Account created. You can sign in now.")}&next=${encodeURIComponent(next)}`);
-      }
-
-      const lowerAdminMessage = adminFailureMessage.toLowerCase();
-      if (lowerAdminMessage.includes("already") || lowerAdminMessage.includes("registered") || lowerAdminMessage.includes("exists")) {
-        signupError({
-          accountType,
-          duplicate: true,
-          email,
-          fullName,
-          message: "An account with this email address already exists. Please sign in or reset your password if you’ve forgotten it.",
-          phone,
-          sellerType
-        });
-      }
-
+      // Never auto-confirm an address we could not email: an unverified email
+      // must not become "verified" just because SMTP failed. Supabase does not
+      // keep the account when the confirmation email fails, so retrying later
+      // is safe.
       signupError({
         accountType,
         email,
         fullName,
-        message: adminFailureMessage || "We could not create your account. Please try again shortly.",
+        message: "We couldn't send your confirmation email right now, so your account was not created. Please try again in a few minutes. If this keeps happening, contact support@agrimarketx.com.",
         phone,
         sellerType
       });

@@ -9,6 +9,8 @@ import { supplyCategoryLabel } from "@/lib/supply-categories";
 import { sellerAccountRoleLabel, sellerStatusLabel, sellerVerificationBadge, verificationTrustScore } from "@/lib/seller-badges";
 import { createClient } from "@/lib/supabase/server";
 import { toggleFarmFollow } from "@/app/account/actions";
+import { readVerifiedFarmPrivateFields } from "@/lib/privileged-reads";
+import { checkRateLimit, RATE_LIMIT_MESSAGE } from "@/lib/rate-limit";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://agrimarketx.co.za";
 
@@ -63,7 +65,7 @@ export default async function PublicFarmProfilePage({
   } = await supabase.auth.getUser();
   const { data: farm } = await supabase
     .from("farms")
-    .select("id, name, logo_url, photo_url, description, location, province, country, owner_name, owner_phone, supply_categories, created_at, seller_verification_status, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, email_verified, phone_verified, seller_verified_at, verification_updated_at")
+    .select("id, name, logo_url, photo_url, description, location, province, country, supply_categories, created_at, seller_verification_status, seller_account_role, seller_type, document_status, facial_verification_status, sponsored_partner, email_verified, phone_verified, seller_verified_at, verification_updated_at")
     .eq("id", id)
     .maybeSingle();
   const { data: listings } = await supabase
@@ -72,6 +74,13 @@ export default async function PublicFarmProfilePage({
     .eq("seller_farm_id", id)
     .eq("status", "active")
     .limit(24);
+  // The owner's name and phone are private columns; they are revealed
+  // server-side only after an explicit "Show phone number" request, with a
+  // per-client rate limit to stop scraping.
+  const contactRevealAllowed = farm && contact === "show" ? await checkRateLimit("contactReveal") : false;
+  const ownerContact = contactRevealAllowed && farm
+    ? await readVerifiedFarmPrivateFields<{ owner_name: string | null; owner_phone: string | null }>(farm.id, "owner_name, owner_phone")
+    : null;
   const { data: follow } = user
     ? await supabase.from("farm_followers").select("id").eq("farm_id", id).eq("user_id", user.id).maybeSingle()
     : { data: null };
@@ -157,8 +166,9 @@ export default async function PublicFarmProfilePage({
             <details className="rounded-md border border-slate-200 px-4 py-2 text-sm font-bold">
               <summary className="cursor-pointer">Contact Seller</summary>
               <div className="mt-3 min-w-56 text-sm font-normal text-slate-700">
-                <p>{farm.owner_name ?? farm.name}</p>
-                {contact === "show" && farm.owner_phone ? <p className="mt-1 font-semibold">Phone: {farm.owner_phone}</p> : <Link href={`/farms/${farm.id}?contact=show` as never} className="mt-1 inline-block text-brand-green">Show phone number</Link>}
+                <p>{ownerContact?.owner_name ?? farm.name}</p>
+                {contact === "show" && !contactRevealAllowed ? <p className="mt-1 text-sm text-slate-600">{RATE_LIMIT_MESSAGE}</p> : null}
+                {ownerContact?.owner_phone ? <p className="mt-1 font-semibold">Phone: {ownerContact.owner_phone}</p> : contact === "show" && contactRevealAllowed ? <p className="mt-1 text-sm text-slate-600">No phone number listed.</p> : <Link href={`/farms/${farm.id}?contact=show` as never} className="mt-1 inline-block text-brand-green">Show phone number</Link>}
                 <p className="mt-2 text-xs text-slate-500">Seller details are only shown after you choose to reveal them.</p>
               </div>
             </details>
