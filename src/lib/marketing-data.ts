@@ -69,31 +69,6 @@ export const workflowSteps = [
   "Review reports, passports, listings and transfer documents before decisions."
 ];
 
-export const pricingPlans = [
-  {
-    name: "Starter",
-    price: "R299",
-    period: "/ month",
-    description: "For small farms and sellers getting organised.",
-    items: ["Up to 150 animals", "1 farm", "Marketplace tools", "Health and breeding", "Core reports"]
-  },
-  {
-    name: "Professional",
-    price: "R899",
-    period: "/ month",
-    description: "For growing farms and agricultural sellers that trade and report often.",
-    items: ["Up to 2,000 animals", "Up to 5 farms", "Marketplace listings", "Digital passports", "Finance and PDF exports"],
-    featured: true
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For larger operations, breeders and organisations.",
-    items: ["Unlimited farms", "Advanced roles", "Admin dashboards", "Verification workflows", "Custom support"]
-  }
-];
-
 export const faqs = [
   {
     question: "Can AgriMarketX manage more than one farm?",

@@ -60,13 +60,6 @@ const categoryShortcuts = [
   { label: "More Categories", href: "/marketplace?category=all", icon: MoreHorizontal }
 ];
 
-const wantedListings = [
-  { title: "Looking for 20 Boer Does", location: "Eastern Cape", budget: "R2 500 - R3 000 / head", quantity: "20 does", icon: Users },
-  { title: "Need Lucerne Bales", location: "Free State", budget: "Open to bulk price", quantity: "100+ bales", icon: Package },
-  { title: "Looking for Dorper Ram", location: "KwaZulu-Natal", budget: "R6 000 - R8 000", quantity: "1 ram", icon: PawPrint },
-  { title: "Need Second Hand Tractor", location: "Mpumalanga", budget: "80 - 120 HP", quantity: "1 tractor", icon: Tractor }
-];
-
 const showMarketplaceStats = false;
 
 const marketplaceListingSelect = `
@@ -783,12 +776,7 @@ export default async function MarketplacePage({
         urgency: wanted.urgency,
         icon: normalizeMarketplaceCategory(wanted.category) === "livestock" ? PawPrint : Package
       }))
-    : wantedListings.map((wanted) => ({
-        ...wanted,
-        href: `/marketplace/wanted?request=${encodeURIComponent(wanted.title)}`,
-        categoryLabel: "Buyer request",
-        urgency: "needed_soon"
-      }));
+    : [];
   const resultLocationLabel = location.trim()
     || (hasLocationContext && nearbyCenter && latitude !== null && longitude !== null ? publicAreaLabel(nearbyCenter) : "")
     || (detectedLocation?.type === "town"
@@ -1102,6 +1090,12 @@ export default async function MarketplacePage({
           </div>
           <Link href="/marketplace/wanted" className="text-sm font-bold text-brand-green">View all</Link>
         </div>
+        {homepageWantedListings.length === 0 ? (
+          <div className="panel p-5 text-sm text-slate-600">
+            No open buyer requests right now.{" "}
+            <Link href="/marketplace/wanted" className="font-bold text-brand-green">Post what you are looking for</Link>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {homepageWantedListings.map((wanted) => {
             const Icon = wanted.icon;
