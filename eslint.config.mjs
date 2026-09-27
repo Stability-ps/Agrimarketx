@@ -15,6 +15,8 @@ const eslintConfig = [
     ignores: [
       ".next/**",
       "node_modules/**",
+      "android/**/build/**",
+      "ios/App/build/**",
       "public/sw.js",
       "public/workbox-*.js",
       "out/**"
