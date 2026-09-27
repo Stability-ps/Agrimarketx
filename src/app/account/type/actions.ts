@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +31,7 @@ export async function chooseAccountType(formData: FormData) {
   });
 
   if (error) {
-    go(`/account/type?message=${encodeURIComponent(error.message)}`);
+    go(`/account/type?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (role === "seller") {
