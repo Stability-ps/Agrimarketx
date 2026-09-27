@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -102,7 +103,7 @@ export async function submitBusinessVerification(formData: FormData) {
     });
 
     if (uploadError) {
-      go(`/seller/verification?message=${encodeURIComponent(uploadError.message)}`);
+      go(`/seller/verification?message=${encodeURIComponent(userSafeErrorMessage(uploadError))}`);
     }
 
     await admin.from("seller_verification_documents").insert({
@@ -116,7 +117,7 @@ export async function submitBusinessVerification(formData: FormData) {
 
   const { error: farmError } = await admin.from("farms").update(farmUpdate).eq("id", farmId);
   if (farmError) {
-    go(`/seller/verification?message=${encodeURIComponent(farmError.message)}`);
+    go(`/seller/verification?message=${encodeURIComponent(userSafeErrorMessage(farmError))}`);
   }
 
   await admin.from("seller_verifications").upsert({
