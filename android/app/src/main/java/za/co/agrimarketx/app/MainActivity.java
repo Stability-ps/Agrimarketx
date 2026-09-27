@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import androidx.core.splashscreen.SplashScreen;
@@ -22,6 +23,7 @@ public class MainActivity extends BridgeActivity {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private FrameLayout brandedSplash;
+    private ViewTreeObserver.OnPreDrawListener splashPreDrawListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,14 +57,33 @@ public class MainActivity extends BridgeActivity {
         // Size the logo from the real container width so it adapts to phones,
         // tablets and both Fold screens (including fold/unfold while visible).
         final int maxWidthPx = Math.round(LOGO_MAX_WIDTH_DP * getResources().getDisplayMetrics().density);
+        final View window = getWindow().getDecorView();
         brandedSplash.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            int width = Math.min(Math.round((right - left) * LOGO_WIDTH_FRACTION), maxWidthPx);
+            int width = Math.min(Math.round(window.getWidth() * LOGO_WIDTH_FRACTION), maxWidthPx);
             ViewGroup.LayoutParams params = logo.getLayoutParams();
             if (width > 0 && params.width != width) {
                 params.width = width;
                 logo.setLayoutParams(params);
             }
         });
+
+        // Pin the logo to the centre of the whole window (where the system
+        // splash icon was), not the content area. Capacitor's SystemBars pads
+        // the DecorView by the system-bar insets until the page commits, and
+        // any later inset change would otherwise re-centre the logo. Checked
+        // before every frame, so a correction lands in the same frame.
+        splashPreDrawListener = () -> {
+            int[] location = new int[2];
+            brandedSplash.getLocationInWindow(location);
+            float dx = window.getWidth() / 2f - (location[0] + brandedSplash.getWidth() / 2f);
+            float dy = window.getHeight() / 2f - (location[1] + brandedSplash.getHeight() / 2f);
+            if (logo.getTranslationX() != dx || logo.getTranslationY() != dy) {
+                logo.setTranslationX(dx);
+                logo.setTranslationY(dy);
+            }
+            return true;
+        };
+        brandedSplash.getViewTreeObserver().addOnPreDrawListener(splashPreDrawListener);
 
         content.addView(brandedSplash, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         handler.postDelayed(this::hideBrandedSplash, BRANDED_SPLASH_MAX_MS);
@@ -78,6 +99,9 @@ public class MainActivity extends BridgeActivity {
 
             brandedSplash = null;
             handler.removeCallbacksAndMessages(null);
+            // Stop re-pinning; the logo stays exactly where it is while fading.
+            splash.getViewTreeObserver().removeOnPreDrawListener(splashPreDrawListener);
+            splashPreDrawListener = null;
             splash
                 .animate()
                 .alpha(0f)

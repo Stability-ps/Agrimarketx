@@ -19,6 +19,12 @@ const config: CapacitorConfig = {
     includePlugins: ["@capacitor/app", "@capacitor/status-bar"]
   },
   plugins: {
+    SystemBars: {
+      // The site declares viewport-fit=cover. Without this hint Capacitor pads
+      // the window by the system bars until the page commits, then removes the
+      // padding, which resizes the WebView and shifts the native splash.
+      initialViewportFitValueHint: "cover"
+    },
     SplashScreen: {
       // iOS only (see android.includePlugins). Keeps the launch screen up
       // until NativeAppBridge calls SplashScreen.hide() after hydration;
