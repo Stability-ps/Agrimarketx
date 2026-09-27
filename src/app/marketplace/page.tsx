@@ -1227,7 +1227,7 @@ export default async function MarketplacePage({
       ) : null}
       <section className="mt-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { title: "Verified Listings", subtitle: "Trusted sellers, quality assured", icon: ShieldCheck },
+          { title: "Seller Verification", subtitle: "Verification status is shown where available", icon: ShieldCheck },
           { title: "Nationwide Delivery", subtitle: "Connect with transport options", icon: Truck },
           { title: "Safe Trading", subtitle: "Private details stay protected", icon: Home },
           { title: "Help & Support", subtitle: "We are here to help you grow", icon: LifeBuoy }
@@ -1252,7 +1252,7 @@ export default async function MarketplacePage({
           <p className="text-sm font-bold uppercase tracking-wide text-brand-green">Sell and manage from one account</p>
           <h2 className="mt-2 text-2xl font-bold text-brand-navy">Become a seller on AgriMarketX</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-green-950">
-            Create listings, receive buyer requests, manage farm records and build trust with seller verification. The mobile app is planned; for now AgriMarketX works in your browser on phone, tablet and desktop.
+            Create listings, receive buyer requests, manage farm records and build trust with seller verification. AgriMarketX works across supported phones, tablets and desktop browsers, with the Android app using the same live marketplace.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
