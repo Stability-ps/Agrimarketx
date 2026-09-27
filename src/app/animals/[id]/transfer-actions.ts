@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,7 @@ export async function advanceTransfer(formData: FormData) {
     .eq("seller_farm_id", farm.id);
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (nextStatus === "in_transit") {
