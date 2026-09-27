@@ -56,7 +56,7 @@ export const marketingFeatures = [
   },
   {
     title: "Mobile Ready",
-    description: "Designed for field workflows, reminders and future offline, RFID/NFC and push notification support.",
+    description: "Designed for practical mobile field workflows, responsive farm records and marketplace use on supported devices.",
     icon: Smartphone
   }
 ];
@@ -105,7 +105,7 @@ export const faqs = [
   },
   {
     question: "Does it support RFID or NFC tags?",
-    answer: "Yes. Animal records include RFID/NFC fields, and the structure is ready for mobile scanning workflows."
+    answer: "Animal records include RFID/NFC reference fields. Hardware scanning is not presented as an active feature until a supported scanning workflow is enabled."
   },
   {
     question: "Can I sell agricultural products through the platform?",
@@ -115,10 +115,6 @@ export const faqs = [
     question: "How does the animal passport work?",
     answer: "Each animal can have a unique passport ID and QR code with private or public views, plus ownership, health, weight, breeding and document history."
   },
-  {
-    question: "Is Stripe billing supported?",
-    answer: "The first build includes Stripe-ready plan tables and subscription screens for checkout and customer portal integration."
-  }
 ];
 
 export const highlightStats = [
@@ -135,7 +131,7 @@ export const calculatorFeature = {
 };
 
 export const supportChannels = [
-  { label: "Book a demo", value: "See the farmer workflow before launch", icon: MessageCircle },
-  { label: "Start trial", value: "Create a farm and test the first console", icon: ShieldCheck },
-  { label: "Billing", value: "Monthly and annual plans with Stripe", icon: BadgeDollarSign }
+  { label: "Get help", value: "Contact AgriMarketX support", icon: MessageCircle },
+  { label: "Create account", value: "Start using marketplace and farm tools", icon: ShieldCheck },
+  { label: "Billing", value: "No in-app checkout is currently enabled", icon: BadgeDollarSign }
 ];
