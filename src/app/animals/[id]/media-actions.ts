@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cleanFileName, isImageFile } from "@/lib/files";
@@ -49,7 +50,7 @@ export async function uploadAnimalPhoto(formData: FormData) {
   });
 
   if (uploadError) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(uploadError.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(uploadError))}`);
   }
 
   const { error } = await supabase.from("animal_media").insert({
@@ -61,7 +62,7 @@ export async function uploadAnimalPhoto(formData: FormData) {
   });
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath(`/animals/${animalId}`);
@@ -98,7 +99,7 @@ export async function setAnimalProfilePhoto(formData: FormData) {
     .eq("media_type", "photo");
 
   if (clearError) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(clearError.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(clearError))}`);
   }
 
   const { error } = await supabase
@@ -107,7 +108,7 @@ export async function setAnimalProfilePhoto(formData: FormData) {
     .eq("id", mediaId);
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath(`/animals/${animalId}`);
@@ -140,7 +141,7 @@ export async function deleteAnimalPhoto(formData: FormData) {
   const { error } = await supabase.from("animal_media").delete().eq("id", mediaId);
 
   if (error) {
-    go(`/animals/${animalId}?message=${encodeURIComponent(error.message)}`);
+    go(`/animals/${animalId}?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   await supabase.storage.from("animal-media").remove([media.storage_path]);
