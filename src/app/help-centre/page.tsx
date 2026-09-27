@@ -12,7 +12,7 @@ const sections = [
   ["Wanted Listings", ["Tell sellers what you need.", "Requests are reviewed before being published.", "Verified sellers can respond with quotes."]],
   ["Verification", ["Verified sellers show a trust badge.", "Farm and seller details may be reviewed by admin.", "Keep your profile and contact details current."]],
   ["Animal Transfers", ["Confirm animal identity and history before transfer.", "Keep ownership records attached to the animal passport.", "Use buyer and seller confirmations."]],
-  ["Payments", ["AgriMarketX does not provide checkout, wallet or escrow yet.", "Inspect items and agree payment safely with the seller."]],
+  ["Payments", ["AgriMarketX does not currently provide checkout, wallet or escrow.", "Inspect items and agree payment safely with the seller."]],
   ["Account Management", ["Use Account Settings for profile, phone, WhatsApp and preferences.", "Buyers can become sellers by setting up a farm profile."]]
 ] as const;
 
@@ -22,7 +22,6 @@ export default function PublicHelpCentrePage() {
       <section className="px-4 py-14 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <SectionHeader eyebrow="Help Centre" title="Simple help for buying, selling and managing farm trade." description="Find quick answers before creating an account or contacting support." />
-          <input className="field mb-5" placeholder="Search help articles" />
           <div className="grid gap-3 sm:grid-cols-2">
             {sections.map(([title, points]) => (
               <section key={title} className="panel p-4">
