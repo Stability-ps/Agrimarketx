@@ -3,6 +3,11 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // Production loads the live site. CAP_SERVER_URL is a local-testing override
 // only, e.g. CAP_SERVER_URL=http://localhost:3000 npx cap sync android
 const serverUrl = process.env.CAP_SERVER_URL ?? "https://agrimarketx.co.za";
+const serverHostname = new URL(serverUrl).hostname;
+
+if (serverHostname === "vercel.app" || serverHostname.endsWith(".vercel.app")) {
+  throw new Error("CAP_SERVER_URL must not point to a Vercel preview deployment.");
+}
 
 const config: CapacitorConfig = {
   appId: "za.co.agrimarketx.app",
