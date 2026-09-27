@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -84,7 +85,7 @@ export async function createBreedingRecord(formData: FormData) {
   });
 
   if (error) {
-    go(`/breeding?message=${encodeURIComponent(error.message)}`);
+    go(`/breeding?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   if (recordType === "birth") {
@@ -99,7 +100,7 @@ export async function createBreedingRecord(formData: FormData) {
     });
 
     if (birthError) {
-      go(`/breeding?message=${encodeURIComponent(birthError.message)}`);
+      go(`/breeding?message=${encodeURIComponent(userSafeErrorMessage(birthError))}`);
     }
 
     const { count } = await supabase
@@ -135,7 +136,7 @@ export async function createBreedingRecord(formData: FormData) {
     const { error: offspringError } = await supabase.from("animals").insert(offspring);
 
     if (offspringError) {
-      go(`/breeding?message=${encodeURIComponent(offspringError.message)}`);
+      go(`/breeding?message=${encodeURIComponent(userSafeErrorMessage(offspringError))}`);
     }
   }
 
