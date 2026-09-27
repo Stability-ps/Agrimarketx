@@ -285,29 +285,6 @@ export default async function AnimalProfilePage({
               </>
             )}
           </div>
-          <div className="panel p-5">
-            <h3 className="font-bold">Exports</h3>
-            <div className="mt-3 grid gap-2">
-              <Link
-                href={`/animals/${id}?message=${encodeURIComponent("Ownership certificate PDF export is ready to connect next.")}` as never}
-                className="secondary-button"
-              >
-                Ownership certificate
-              </Link>
-              <Link
-                href={`/animals/${id}?message=${encodeURIComponent("Invoice export is ready to connect next.")}` as never}
-                className="secondary-button"
-              >
-                Invoice
-              </Link>
-              <Link
-                href={`/animals/${id}?message=${encodeURIComponent("Animal history PDF export is ready to connect next.")}` as never}
-                className="secondary-button"
-              >
-                Animal history PDF
-              </Link>
-            </div>
-          </div>
         </aside>
       </div>
       <section id="animal-photos" className="mt-4">
