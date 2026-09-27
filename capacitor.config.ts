@@ -12,13 +12,17 @@ const config: CapacitorConfig = {
     url: serverUrl,
     cleartext: serverUrl.startsWith("http://")
   },
+  android: {
+    // Android uses the native branded splash in MainActivity/BrandedSplashPlugin,
+    // which also answers the website's SplashScreen.hide() call. The npm
+    // splash plugin can only show the small Android 12 launcher icon.
+    includePlugins: ["@capacitor/app", "@capacitor/status-bar"]
+  },
   plugins: {
     SplashScreen: {
-      // Android shows one native launch screen (AppTheme.NoActionBarLaunch).
-      // The plugin keeps that same screen up until NativeAppBridge calls
-      // SplashScreen.hide() after the remote site hydrates, so there is no
-      // blank WebView while https://agrimarketx.co.za loads. The duration is
-      // only a safety cap in case the site never loads.
+      // iOS only (see android.includePlugins). Keeps the launch screen up
+      // until NativeAppBridge calls SplashScreen.hide() after hydration;
+      // the duration is only a safety cap.
       launchShowDuration: 6000,
       launchAutoHide: true,
       launchFadeOutDuration: 200,

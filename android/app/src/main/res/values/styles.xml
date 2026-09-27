@@ -14,10 +14,11 @@
         <item name="android:background">@null</item>
     </style>
 
-    <!-- One native launch screen only. Once Android finishes the launch
-         screen it switches permanently to the normal WebView theme. -->
+    <!-- Android 12+ system splash: white with the launcher icon, shown only
+         until the first frame. MainActivity then shows the large branded
+         logo (drawable-nodpi/splash_logo) until the website is ready. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@android:color/white</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>
