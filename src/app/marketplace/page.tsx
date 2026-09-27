@@ -1258,7 +1258,7 @@ export default async function MarketplacePage({
         <div className="flex flex-wrap gap-2">
           <Link href={sellHref as never} className="primary-button">Start Selling</Link>
           <Link href="/farm-management" className="secondary-button bg-white">Farm Management</Link>
-          <span className="rounded-md border border-green-200 bg-white px-4 py-2 text-sm font-bold text-brand-green">App coming soon</span>
+          <Link href="/about" className="rounded-md border border-green-200 bg-white px-4 py-2 text-sm font-bold text-brand-green">About AgriMarketX</Link>
         </div>
       </section>
       <footer className="mt-8 border-t border-slate-200 pt-5 text-sm text-slate-600">
