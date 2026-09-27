@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentFarm } from "@/lib/farm-server";
@@ -69,7 +70,7 @@ export async function createAnimal(formData: FormData) {
         .single();
 
       if (customSpeciesError || !customSpecies) {
-        go(`/animals/add?message=${encodeURIComponent(customSpeciesError?.message ?? "Could not create custom species.")}`);
+        go(`/animals/add?message=${encodeURIComponent(userSafeErrorMessage(customSpeciesError, "Could not create custom species."))}`);
       }
 
       speciesId = customSpecies.id;
@@ -120,7 +121,7 @@ export async function createAnimal(formData: FormData) {
     .single();
 
   if (error || !animal) {
-    go(`/animals/add?message=${encodeURIComponent(error?.message ?? "Could not save animal.")}`);
+    go(`/animals/add?message=${encodeURIComponent(userSafeErrorMessage(error, "Could not save animal."))}`);
   }
 
   if (currentWeight) {
