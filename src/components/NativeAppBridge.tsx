@@ -23,18 +23,45 @@ export function NativeAppBridge() {
         return;
       }
 
-      await StatusBar.setStyle({ style: Style.Light }).catch(() => undefined);
+      // The single Android launch splash stays up (capped by
+      // launchShowDuration) until the web app has hydrated, so the WebView
+      // never shows a blank page while the remote site is loading.
       await SplashScreen.hide().catch(() => undefined);
+      await StatusBar.setStyle({ style: Style.Light }).catch(() => undefined);
 
-      const backListener = await App.addListener("backButton", ({ canGoBack }) => {
-        if (canGoBack || window.history.length > 1) {
-          window.history.back();
+      const leaveFromCurrentPage = () => {
+        if (window.location.pathname !== "/" && window.location.pathname !== "/marketplace") {
+          window.location.replace("/marketplace");
           return;
         }
 
         if (Capacitor.getPlatform() === "android") {
           void App.exitApp();
         }
+      };
+
+      const backListener = await App.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) {
+          window.history.back();
+          return;
+        }
+
+        // The WebView's canGoBack skips entries that were pushed without a
+        // user gesture, while history.length also counts forward entries.
+        // Try a JS back step and only fall back if the URL did not change,
+        // so Back can neither exit early nor become a no-op trap.
+        if (window.history.length > 1) {
+          const before = window.location.href;
+          window.history.back();
+          window.setTimeout(() => {
+            if (window.location.href === before) {
+              leaveFromCurrentPage();
+            }
+          }, 350);
+          return;
+        }
+
+        leaveFromCurrentPage();
       });
       cleanups.push(() => void backListener.remove());
 
@@ -47,8 +74,12 @@ export function NativeAppBridge() {
             return;
           }
 
-          const next = `${incoming.pathname}${incoming.search}${incoming.hash}`;
-          window.location.assign(next || "/marketplace");
+          const next = `${incoming.pathname}${incoming.search}${incoming.hash}` || "/marketplace";
+          const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+          if (next !== current) {
+            window.location.assign(next);
+          }
         } catch {
           // Ignore malformed external URLs.
         }
