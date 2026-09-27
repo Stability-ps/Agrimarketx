@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "AgriMarketX privacy policy explaining how account, marketplace, farm, location and support information is handled."
 };
 
-const updated = "26 September 2026";
+const updated = "27 September 2026";
 
 const sections = [
   {
@@ -57,9 +57,13 @@ const sections = [
     body: (
       <>
         AgriMarketX uses service providers to operate the platform. These may include Supabase for application database,
-        authentication and storage services, hosting and infrastructure providers, and Stripe for subscription or payment
-        functions where those features are used. Providers process information under their own security and privacy
-        obligations and only as needed to provide their services.
+        authentication and storage services, Didit for seller identity verification (government ID, selfie, liveness and
+        face-match checks), Twilio for SMS verification codes, Google Maps for location search and maps, hosting and
+        infrastructure providers, and Stripe for subscription or payment functions where those features are used.
+        Providers process information under their own security and privacy obligations and only as needed to provide
+        their services. Seller verification documents are stored privately and are only accessible to authorised
+        AgriMarketX staff reviewing the verification. Contact details you add to a listing are shown to people who ask to
+        contact you about that listing.
       </>
     )
   },
