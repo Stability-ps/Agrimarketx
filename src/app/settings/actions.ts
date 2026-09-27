@@ -1,5 +1,6 @@
 "use server";
 
+import { userSafeErrorMessage } from "@/lib/user-errors";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -119,7 +120,7 @@ export async function updateProfileDetails(formData: FormData) {
   });
 
   if (error) {
-    go(`/settings?message=${encodeURIComponent(error.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/settings");
@@ -181,7 +182,7 @@ export async function updateFarmDetails(formData: FormData) {
     .eq("id", farm.id);
 
   if (error) {
-    go(`/settings?message=${encodeURIComponent(error.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/");
@@ -207,7 +208,7 @@ export async function switchActiveFarm(formData: FormData) {
     .maybeSingle();
 
   if (error || !data) {
-    go(`/settings?message=${encodeURIComponent(error?.message ?? "You do not have access to that farm.")}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(error, "You do not have access to that farm."))}`);
   }
 
   await setActiveFarmCookie(farmId);
@@ -256,7 +257,7 @@ export async function createAdditionalFarm(formData: FormData) {
     .maybeSingle();
 
   if (companyError) {
-    go(`/settings?message=${encodeURIComponent(companyError.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(companyError))}`);
   }
 
   if (!company) {
@@ -275,7 +276,7 @@ export async function createAdditionalFarm(formData: FormData) {
   }
 
   if (companyError || !company) {
-    go(`/settings?message=${encodeURIComponent(companyError?.message ?? "Could not prepare company account.")}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(companyError, "Could not prepare company account."))}`);
   }
 
   const { data: newFarm, error: farmError } = await supabase
@@ -298,7 +299,7 @@ export async function createAdditionalFarm(formData: FormData) {
     .single();
 
   if (farmError || !newFarm) {
-    go(`/settings?message=${encodeURIComponent(farmError?.message ?? "Could not create farm.")}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(farmError, "Could not create farm."))}`);
   }
 
   const { error: memberError } = await supabase.from("farm_members").insert({
@@ -308,7 +309,7 @@ export async function createAdditionalFarm(formData: FormData) {
   });
 
   if (memberError) {
-    go(`/settings?message=${encodeURIComponent(memberError.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(memberError))}`);
   }
 
   await setActiveFarmCookie(newFarm.id);
@@ -336,7 +337,7 @@ export async function deleteProfilePhoto() {
   const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
 
   if (error) {
-    go(`/settings?message=${encodeURIComponent(error.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/settings");
@@ -349,7 +350,7 @@ export async function deleteFarmLogo() {
   const { error } = await supabase.from("farms").update({ logo_url: null }).eq("id", farm.id);
 
   if (error) {
-    go(`/settings?message=${encodeURIComponent(error.message)}`);
+    go(`/settings?message=${encodeURIComponent(userSafeErrorMessage(error))}`);
   }
 
   revalidatePath("/settings");
