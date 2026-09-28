@@ -4,6 +4,7 @@ const config: CapacitorConfig = {
   appId: "za.co.agrimarketx.app",
   appName: "AgriMarketX",
   webDir: "public",
+  bundledWebRuntime: false,
   server: {
     url: "https://agrimarketx.co.za",
     cleartext: false
