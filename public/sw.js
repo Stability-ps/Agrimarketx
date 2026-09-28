@@ -1,4 +1,4 @@
-const CACHE_NAME = "agrimarketx-shell-v2";
+const CACHE_NAME = "agrimarketx-shell-v3";
 const SAFE_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",

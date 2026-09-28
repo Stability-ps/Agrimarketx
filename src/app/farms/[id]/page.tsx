@@ -45,7 +45,7 @@ export async function generateMetadata({
       title: `${farm.name} | AgriMarketX`,
       description,
       url: `${SITE_URL}/farms/${farm.id}`,
-      images: [{ url: farm.photo_url || farm.logo_url || `${SITE_URL}/icon-512.png` }]
+      images: [{ url: farm.photo_url || farm.logo_url || `${SITE_URL}/icons/icon-512x512.png` }]
     }
   };
 }

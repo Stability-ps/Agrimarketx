@@ -145,7 +145,7 @@ export async function generateMetadata({
   const media = Array.isArray(listing.marketplace_listing_media)
     ? listing.marketplace_listing_media.find((item: any) => item.media_type === "photo" && item.is_primary) ?? listing.marketplace_listing_media.find((item: any) => item.media_type === "photo")
     : null;
-  const image = media?.storage_path ? publicStorageUrl("farm-assets", media.storage_path) : `${SITE_URL}/icon-512.png`;
+  const image = media?.storage_path ? publicStorageUrl("farm-assets", media.storage_path) : `${SITE_URL}/icons/icon-512x512.png`;
 
   return {
     title: `${listing.title} in ${location} | AgriMarketX`,
