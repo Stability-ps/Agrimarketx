@@ -153,3 +153,41 @@ Authentication → Sign In / Providers → Email:
 Authentication → Rate Limits: keep email sends conservative (for example 30/hour)
 and confirm a working custom SMTP is configured, because signups no longer
 fall back to auto-confirmed accounts when email delivery fails.
+
+## 8. Rollout record (executed 2026-09-27/28)
+
+- Backup: daily physical backups present (latest 2026-09-27 03:40 UTC); PITR off.
+- Drift: `db diff` against 001-034 showed production lacked the 007 transfer
+  RPCs, 6 admin policies (012/014) and 27 indexes (014/025). 035 recreates
+  them; rehearsal on a copy of the production schema diffed EMPTY against a
+  full replay of 001-037.
+- Applied in order: 035, 037, then web code (PRs #6, #7), then 036.
+- History baselined with `migration repair` (001-034 recorded, the duplicate
+  `20260926162110` = 034 retired). `migration list`: nothing pending.
+- Verification documents: none existed in production, nothing to migrate;
+  private bucket verified (no public URL, 60 s signed URLs expire, MIME rules).
+- Hotfixes found by production QA, each rehearsed, applied and merged:
+  - 038: grant `farms.company_id` to authenticated (onboarding membership
+    policy subquery; 036 had broken new-seller onboarding for ~15 min, no users
+    affected).
+  - 039: owner-scoped storage SELECT (owners could not delete their files).
+  - 040: marketplace chat RLS (pre-existing: buyers could never start chats,
+    sellers could not reply).
+  - 041: pin `search_path` on 6 functions (Security Advisor).
+- Security Advisor after: no errors; remaining warnings are intended
+  (8 SECURITY DEFINER helpers executable by `authenticated`), `pg_trgm` in
+  `public` (moving it would break trigram indexes) and leaked-password
+  protection (dashboard).
+- Performance Advisor: 47 `auth_rls_initplan` and 52
+  `multiple_permissive_policies` warnings (scale optimisations for later);
+  47 remaining unindexed FKs are audit/rarely-filtered columns.
+
+### Known low-severity item
+
+Signed-in users can read all columns (including `notes`, `qr_code_payload`,
+`date_of_birth`) of animals that are on an active listing or have
+`public_passport_enabled` (default false; the app never sets it; 6 seed
+animals have it). Column privileges cannot fix this without breaking farm
+records, because farm members read the same columns as `authenticated`.
+Recommended fix: move private animal fields to a members-only table, or serve
+listing animal data server-side and drop the non-member animal policies.
