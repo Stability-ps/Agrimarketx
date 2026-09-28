@@ -1,28 +1,56 @@
-name: Prepare native mobile projects
+name: Verify native mobile project
+
+# The android/ (and ios/) projects are SOURCE-CONTROLLED and hand-maintained:
+# MainActivity.java + BrandedSplashPlugin.java (native branded splash),
+# splash/launcher resources, AndroidManifest.xml (App Links), versioning and
+# signing configuration. They must NEVER be deleted or regenerated with
+# `cap add` in CI. This workflow only verifies them: it has read-only
+# permissions and never commits.
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/prepare-native-mobile.yml"
   push:
     branches:
       - mobile/capacitor-ios-android
     paths:
+      - "android/**"
       - "capacitor.config.ts"
       - "package.json"
       - "pnpm-lock.yaml"
-      - "src/components/NativeAppBridge.tsx"
       - ".github/workflows/prepare-native-mobile.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  prepare-native:
-    if: github.actor != 'github-actions[bot]'
+  android:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Refuse to run without the hand-maintained native project
+        run: |
+          for file in \
+            android/app/src/main/AndroidManifest.xml \
+            android/app/src/main/java/za/co/agrimarketx/app/MainActivity.java \
+            android/app/src/main/java/za/co/agrimarketx/app/BrandedSplashPlugin.java \
+            android/app/src/main/res/drawable-nodpi/splash_logo.webp \
+            android/app/src/main/res/drawable-nodpi/splash_icon.webp; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing $file. The native project is source-controlled; restore it from git instead of regenerating it."
+              exit 1
+            fi
+          done
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,24 +62,25 @@ jobs:
         with:
           version: "10"
 
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies (lockfile must be up to date)
+        run: pnpm install --frozen-lockfile
 
-      - name: Generate Android and iOS projects
-        run: |
-          rm -rf android ios
-          pnpm exec cap add android
-          pnpm exec cap add ios
-          pnpm exec cap sync
+      - name: Sync Capacitor config into the existing Android project
+        run: pnpm exec cap sync android
 
-      - name: Commit generated native projects
+      - name: Committed native config must match cap sync output
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json pnpm-lock.yaml android ios
-          if git diff --cached --quiet; then
-            echo "No generated changes to commit."
-            exit 0
+          if ! git diff --exit-code -- android; then
+            echo "::error::cap sync changed tracked files under android/. Run 'npx cap sync android' locally and commit the result."
+            exit 1
           fi
-          git commit -m "chore: generate Capacitor iOS and Android projects [skip ci]"
-          git push
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon

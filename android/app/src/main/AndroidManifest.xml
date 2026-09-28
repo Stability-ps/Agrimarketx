@@ -18,11 +18,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter>
+            <!-- HTTPS App Links for public browsing pages only. Auth callbacks
+                 (/auth/*, /login, /reset-password) intentionally stay in the
+                 browser: their PKCE/session cookies live where the flow began.
+                 Verified via https://agrimarketx.co.za/.well-known/assetlinks.json
+                 (ANDROID_SHA256_CERT_FINGERPRINTS on the website). -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="agrimarketx.co.za" />
+                <data android:scheme="https" />
+                <data android:host="agrimarketx.co.za" />
+                <data android:path="/" />
+                <data android:pathPrefix="/marketplace" />
+                <data android:pathPrefix="/farms" />
+                <data android:pathPrefix="/province/" />
+                <data android:pathPrefix="/city/" />
             </intent-filter>
         </activity>
 
