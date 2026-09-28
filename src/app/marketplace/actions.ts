@@ -93,6 +93,25 @@ async function registeredSellerContact(supabase: Awaited<ReturnType<typeof creat
   };
 }
 
+/** Checks photo count and real file content before anything is saved. */
+async function listingPhotoProblem(category: string, files: FormDataEntryValue[]) {
+  const images = files.filter((file): file is File => file instanceof File && file.size > 0);
+  const limit = marketplacePhotoLimit(category);
+
+  if (images.length > limit) {
+    return `This category allows up to ${limit} photos.`;
+  }
+
+  for (const file of images) {
+    const validation = await validateUpload(file, "image");
+    if (!validation.ok) {
+      return validation.message;
+    }
+  }
+
+  return null;
+}
+
 async function uploadListingPhotos(supabase: Awaited<ReturnType<typeof createClient>>, listingId: string, farmId: string, category: string, files: FormDataEntryValue[]) {
   const images = files.filter((file): file is File => file instanceof File && file.size > 0);
   const limit = marketplacePhotoLimit(category);
@@ -225,6 +244,13 @@ export async function createUniversalMarketplaceListing(formData: FormData) {
   }
 
   const contact = await registeredSellerContact(supabase, farm.id);
+  // Reject bad photos before creating the listing, so a failed upload never
+  // leaves an empty listing waiting for review.
+  const photoProblem = await listingPhotoProblem(category, formData.getAll("listingPhotos"));
+  if (photoProblem) {
+    go(`/marketplace/create?message=${encodeURIComponent(photoProblem)}`);
+  }
+
   const { data: listing, error } = await supabase.from("marketplace_listings").insert({
     seller_farm_id: farm.id,
     client_request_id: clientRequestId,
